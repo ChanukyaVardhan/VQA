@@ -100,7 +100,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
                   f'Train Time - {train_time:.2f} secs, Val Time - {val_time:.2f} secs')
 
 		if save_model:
-			print(f"Saving model at epoch {epoch} in {save_directory}!")
+			print(f"Saving model at epoch {epoch}!")
 			torch.save(model.state_dict(), os.path.join(save_directory, model_name + '_' + str(epoch) + '.pth'))
 
 		if val_accuracy > best_accuracy:
@@ -108,7 +108,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
 			best_weights  = deepcopy(model.state_dict())
 
 			if save_best_state:
-				print(f"Saving best model with val accuracy {val_accuracy} in {save_directory}!")
+				print(f"Saving best model with val accuracy {val_accuracy}!")
 				torch.save(model.state_dict(), os.path.join(save_directory, model_name + '_best.pth'))
 
 		if scheduler is not None:
@@ -122,26 +122,28 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
 
 	return model, optimizer, best_accuracy, train_losses, train_accuracies, val_losses, val_accuracies
 
-def test(model, test_loader, device):
-	model.eval()
-	num_samples     = 0
-	test_start_time = time.time()
-	test_accuracy   = 0
+# WRITE A FUNCTION THAT TAKES AN IAMGE AND A QUESTION AND RETURNS THE ANSWER
 
-	for step, (images, questions, answers) in enumerate(test_loader):
-		images          = images.to(device)
-		questions       = questions.to(device)
-		answers         = answers.to(device)
+# def test(model, test_loader, device):
+# 	model.eval()
+# 	num_samples     = 0
+# 	test_start_time = time.time()
+# 	test_accuracy   = 0
 
-		pred_scores     = model(images, questions)
-		_, pred_answers = torch.max(pred_scores, 1)
+# 	for step, (images, questions, answers) in enumerate(test_loader):
+# 		images          = images.to(device)
+# 		questions       = questions.to(device)
+# 		answers         = answers.to(device)
 
-		test_accuracy  += (pred_answers == answers).sum().item()
-		num_samples    += images.size(0)
+# 		pred_scores     = model(images, questions)
+# 		_, pred_answers = torch.max(pred_scores, 1)
 
-	test_accuracy      =  test_accuracy * 100.0 / num_samples
+# 		test_accuracy  += (pred_answers == answers).sum().item()
+# 		num_samples    += images.size(0)
 
-	test_time = time.time() - test_start_time
-	print(f'Test Accuracy - {test_accuracy}, Total Test Time - {test_time:.2f} secs')
+# 	test_accuracy      =  test_accuracy * 100.0 / num_samples
 
-	return model, test_accuracy
+# 	test_time = time.time() - test_start_time
+# 	print(f'Test Accuracy - {test_accuracy}, Total Test Time - {test_time:.2f} secs')
+
+# 	return model, test_accuracy
