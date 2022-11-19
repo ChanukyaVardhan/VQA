@@ -3,6 +3,7 @@ from models.baseline import VQABaseline
 from PIL import Image
 from torch.optim import SGD, lr_scheduler
 from torch.utils.data import Dataset, DataLoader
+from train import *
 
 import argparse
 import os
@@ -42,7 +43,7 @@ momentum     = 0.9
 weight_decay = 0.0005
 epochs       = 2
 
-model 		 = nn.DataParallel(get_model()).to(dev)
+model 		 = nn.DataParallel(get_model()).to(device)
 optimizer    = SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
 loss_fn      = nn.CrossEntropyLoss()
 scheduler    = lr_scheduler.MultiStepLR(optimizer, milestones = [60, 120, 180], gamma = 0.1)

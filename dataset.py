@@ -1,7 +1,10 @@
 from PIL import Image
 from torch.utils.data import Dataset
 
+import collections
 import numpy as np
+import os
+import pickle
 import torch
 import torchvision.transforms as transforms
 
@@ -16,32 +19,32 @@ def pad_sequences(l, max_length):
 class VQADataset(Dataset):
     
     def __init__(self, data_dir, transform = None, mode = 'train', top_k = 1000):
-        self.data_dir      		= data_dir
-        self.transform     		= transform
-        self.mode          		= mode
+        self.data_dir              = data_dir
+        self.transform             = transform
+        self.mode                  = mode
         
-        self.labelfreq     		= pickle.load(open(os.path.join(data_dir, f'answers_freqs.pkl'), 'rb'))
-        self.label2idx     		= {x[0]: i+1 for i, x in enumerate(collections.Counter(self.labelfreq).most_common(n = top_k))}
-        self.label2idx["<unk>"] = 0
+        self.labelfreq             = pickle.load(open(os.path.join(data_dir, f'answers_freqs.pkl'), 'rb'))
+        self.label2idx             = {x[0]: i+1 for i, x in enumerate(collections.Counter(self.labelfreq).most_common(n = top_k))}
+        self.label2idx["<unk>"]    = 0
 
-        self.word2idx      		= pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"]
-        self.max_length    		= pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["max_length"]
+        self.word2idx              = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"]
+        self.max_length            = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["max_length"]
         
-        self.data_file     		= None
-        self.img_dir       		= None
+        self.data_file             = None
+        self.img_dir               = None
         if mode == 'train':
-            self.data_file 		= 'train_data.txt'
-            self.img_dir   		= 'train2014'
+            self.data_file         = 'train_data.txt'
+            self.img_dir           = 'train2014'
         elif mode == 'val':
-            self.data_file 		= 'val_data.txt'
-            self.img_dir   		= 'val2014'
+            self.data_file         = 'val_data.txt'
+            self.img_dir           = 'val2014'
         else:
-            self.data_file 		= None
-            self.img_dir   		= None
+            self.data_file         = None
+            self.img_dir           = None
             
         
-        with open(self.data_file, 'r') as f:
-            self.data 			= f.read().strip().split('\n')
+        with open(os.path.join(data_dir, self.data_file), 'r') as f:
+            self.data             = f.read().strip().split('\n')
     
     def __len__(self):
         return len(self.data)
@@ -59,4 +62,4 @@ class VQADataset(Dataset):
 
         answer = self.label2idx[answer if answer in self.label2idx else '<unk>']
 
-    	return img, question, answer
+        return img, question, answer
