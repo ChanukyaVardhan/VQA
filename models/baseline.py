@@ -35,7 +35,8 @@ class QuestionEncoder(nn.Module):
         super(QuestionEncoder, self).__init__()
         
         self.word_embeddings = nn.Sequential(
-                                   nn.Embedding(vocab_size, word_embedding_size),
+                                   # nn.Embedding(vocab_size, word_embedding_size),
+                                   nn.Embedding(vocab_size, word_embedding_size, padding_idx = 0),
                                    nn.Tanh())
         self.lstm            = nn.LSTM(input_size = word_embedding_size, hidden_size = hidden_size,
                                        num_layers = num_layers)
@@ -58,7 +59,7 @@ class QuestionEncoder(nn.Module):
 
 class VQABaseline(nn.Module):
 
-    def __init__(self,  vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
+    def __init__(self, vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
                  lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi',
                  dropout_prob = 0.5, train_cnn = False):
         super(VQABaseline, self).__init__()
