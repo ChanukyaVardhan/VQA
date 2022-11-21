@@ -56,13 +56,13 @@ def val(model, val_loader, loss_fn, device):
         
         num_samples    += images.size(0)
 
-    val_loss         /= num_samples
+    val_loss          /= num_samples
     val_accuracy       = val_accuracy * 100.0 / num_samples
 
     return model, val_loss, val_accuracy
 
 def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device, save_directory,
-                epochs = 25, start_epoch = 1, model_name = 'model', save_model = True, save_best_state = True,
+                epochs = 25, start_epoch = 1, model_name = 'model', save_model = False, save_best_state = True,
                 print_epoch_freq = 1, print_step_freq = 10000, print_stats = True):
     start_time       = time.time()
     # Fix these?
@@ -105,7 +105,8 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
 
         if val_accuracy > best_accuracy:
             best_accuracy = val_accuracy
-            best_weights  = deepcopy(model.state_dict())
+            if save_model:
+            	best_weights  = deepcopy(model.state_dict())
 
             if save_best_state:
                 print(f"Saving best model with val accuracy {val_accuracy}!")
@@ -122,28 +123,28 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
 
     return model, optimizer, best_accuracy, train_losses, train_accuracies, val_losses, val_accuracies
 
-# WRITE A FUNCTION THAT TAKES AN IAMGE AND A QUESTION AND RETURNS THE ANSWER
+def test(model, test_loader, device):
+    model.eval()
+    num_samples     = 0
+    test_start_time = time.time()
+    test_accuracy   = 0
 
-# def test(model, test_loader, device):
-#     model.eval()
-#     num_samples     = 0
-#     test_start_time = time.time()
-#     test_accuracy   = 0
+    for step, (images, questions, answers) in enumerate(test_loader):
+        images          = images.to(device)
+        questions       = questions.to(device)
+        answers         = answers.to(device)
 
-#     for step, (images, questions, answers) in enumerate(test_loader):
-#         images          = images.to(device)
-#         questions       = questions.to(device)
-#         answers         = answers.to(device)
+        pred_scores     = model(images, questions)
+        _, pred_answers = torch.max(pred_scores, 1)
 
-#         pred_scores     = model(images, questions)
-#         _, pred_answers = torch.max(pred_scores, 1)
+        test_accuracy  += (pred_answers == answers).sum().item()
+        num_samples    += images.size(0)
 
-#         test_accuracy  += (pred_answers == answers).sum().item()
-#         num_samples    += images.size(0)
+    test_accuracy      =  test_accuracy * 100.0 / num_samples
 
-#     test_accuracy      =  test_accuracy * 100.0 / num_samples
+    test_time = time.time() - test_start_time
+    print(f'Test Accuracy - {test_accuracy}, Total Test Time - {test_time:.2f} secs')
 
-#     test_time = time.time() - test_start_time
-#     print(f'Test Accuracy - {test_accuracy}, Total Test Time - {test_time:.2f} secs')
+    return model, test_accuracy
 
-#     return model, test_accuracy
+# WRITE A FUNCTION THAT TAKES AN IMAGE AND A QUESTION AND RETURNS THE ANSWER

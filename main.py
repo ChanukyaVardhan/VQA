@@ -40,6 +40,7 @@ batch_size   = 64 * num_gpus # Same batch size on each GPU
 train_loader = DataLoader(train_ds, batch_size = batch_size, shuffle = True, num_workers = 2, pin_memory = True)
 val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
 
+# DECIDE THE PARAMETERS FROM THE PAPER
 lr           = 0.01
 momentum     = 0.9
 weight_decay = 0.0005
@@ -49,6 +50,7 @@ model        = nn.DataParallel(get_model(vocab_size)).to(device) if num_gpus > 1
 optimizer    = SGD(model.parameters(), lr = lr, momentum = momentum, weight_decay = weight_decay)
 loss_fn      = nn.CrossEntropyLoss()
 scheduler    = lr_scheduler.MultiStepLR(optimizer, milestones = [60, 120, 180], gamma = 0.1)
+# DECIDE THE SCHEDULER FROM THE PAPERS
 
 model, optim, best_accuracy, train_losses, train_accuracies, val_losses, val_accuracies = \
     train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device,
