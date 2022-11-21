@@ -1,35 +1,43 @@
 from copy import deepcopy
+from tensorboardX import SummaryWriter
+
+import numpy as np
 import os
 import time
 import torch
 
-def train(model, train_loader, loss_fn, optimizer, device, print_step_freq = 10000, print_stats = True):
+def train(model, train_loader, loss_fn, optimizer, device, completed_steps, print_step_freq = 50, print_stats = True, step_writer = None):
     model.train()
-    train_loss     = 0.0
-    train_accuracy = 0.0
-    num_samples    = 0
+    train_loss      = 0.0
+    train_accuracy  = 0.0
+    num_samples     = 0
 
     for step, (images, questions, answers) in enumerate(train_loader):
-        images          = images.to(device)
-        questions       = questions.to(device)
-        answers         = answers.to(device)
+        images           = images.to(device)
+        questions        = questions.to(device)
+        answers          = answers.to(device)
 
         optimizer.zero_grad()
 
-        pred_scores     = model(images, questions)
-        l               = loss_fn(pred_scores, answers)
-        train_loss     += l.item() * images.size(0)
+        pred_scores      = model(images, questions)
+        l                = loss_fn(pred_scores, answers)
+        train_loss      += l.item() * images.size(0)
 
-        _, pred_answers = torch.max(pred_scores, 1)
-        train_accuracy += (pred_answers == answers).sum().item()
+        _, pred_answers  = torch.max(pred_scores, 1)
+        train_accuracy  += (pred_answers == answers).sum().item()
 
         l.backward()
         optimizer.step()
         
-        num_samples    += images.size(0)
+        num_samples     += images.size(0)
 
-        if print_stats and ((step + 1) == 1 or (step + 1) % print_step_freq == 0):
-            print(f"Step - {step + 1}, Running Train Loss - {train_loss/num_samples:.4f}, Running Train Accuracy - {train_accuracy * 100.0 /num_samples:.2f}")
+        completed_steps += 1
+        if print_stats and (completed_steps == 1 or completed_steps % print_step_freq == 0):
+            print(f"Step - {completed_steps}, Running Train Loss - {train_loss/num_samples:.4f}, Running Train Accuracy - {train_accuracy * 100.0 /num_samples:.2f}")
+        
+        if step_writer is not None:
+            step_writer.add_scalar('Train_Loss', train_loss/num_samples, completed_steps)
+            step_writer.add_scalar('Train_Accuracy', train_accuracy * 100.0/num_samples, completed_steps)
 
     train_loss         /= num_samples
     train_accuracy      = train_accuracy * 100.0 / num_samples
@@ -61,9 +69,9 @@ def val(model, val_loader, loss_fn, device):
 
     return model, val_loss, val_accuracy
 
-def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device, save_directory,
+def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device, save_directory, log_directory,
                 epochs = 25, start_epoch = 1, model_name = 'model', save_model = False, save_best_state = True,
-                print_epoch_freq = 1, print_step_freq = 10000, print_stats = True):
+                print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
     start_time       = time.time()
     # Fix these?
     best_accuracy    = 0
@@ -71,18 +79,24 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
     train_accuracies = []
     val_losses       = []
     val_accuracies   = []
-
+    train_length     = len(train_loader.dataset)
+    train_batch_size = train_loader.batch_size
+    train_steps      = np.ceil(train_length / train_batch_size)
 
     # HOW TO SAVE THE LOSS AND ACCURACY VALUES FOR EACH EPOCH?
     # HOW TO HANDLE THE PREVIOUS LOSS VALUES ARE NOT GONE WHEN RUNNING FROM A DIFFERENT START EPOCH?
         # PROBABLY READ THE EXISTING LOSS FILES AND FIGURE IT OUT
         # EVEN BEST ACCURACY SHOULD ALSO BE PROPERLY TAKEN CARE OF?
     # DO WE WANT LOSS VALUES FOR EACH STEP TO BE STORED?
+    epoch_writer     = SummaryWriter(os.path.join(log_directory, model_name)) # CHANGE TO A SEPARATE DIRECTORY
+    step_writer      = SummaryWriter(os.path.join(log_directory, model_name + "_step")) # CHANGE TO A SEPARATE DIRECTORY
     for epoch in range(start_epoch, epochs + 1):
-
+        completed_steps   = (epoch - 1) * train_steps
+        
         train_start_time  = time.time()
-        model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device,
-                                                             print_step_freq = print_step_freq, print_stats = print_stats)
+        model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps,
+                                                             print_step_freq = print_step_freq, print_stats = print_stats,
+                                                             step_writer = step_writer)
         train_time        = time.time() - train_start_time
 
         val_start_time    = time.time()
@@ -105,12 +119,19 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
 
         if val_accuracy > best_accuracy:
             best_accuracy = val_accuracy
-            if save_model:
-            	best_weights  = deepcopy(model.state_dict())
+            best_weights  = deepcopy(model.state_dict())
 
             if save_best_state:
                 print(f"Saving best model with val accuracy {val_accuracy}!")
+                st = time.time()
                 torch.save(model.state_dict(), os.path.join(save_directory, model_name + '_best.pth'))
+                et = time.time()
+                print(f"Time to save best model {et - st} secs!")
+
+        epoch_writer.add_scalar('Train_Loss', train_loss, epoch)
+        epoch_writer.add_scalar('Train_Accuracy', train_accuracy, epoch)
+        epoch_writer.add_scalar('Val_Loss', val_loss, epoch)
+        epoch_writer.add_scalar('Val_Accuracy', val_accuracy, epoch)
 
         if scheduler is not None:
             scheduler.step()
@@ -121,9 +142,11 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
     if save_best_state:
         model.load_state_dict(best_weights)
 
+    epoch_writer.close()
+    step_writer.close()
     return model, optimizer, best_accuracy, train_losses, train_accuracies, val_losses, val_accuracies
 
-def test(model, test_loader, device):
+def test_model(model, test_loader, device):
     model.eval()
     num_samples     = 0
     test_start_time = time.time()
