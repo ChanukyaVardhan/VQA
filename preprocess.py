@@ -33,7 +33,7 @@ def save_preprocessed_data(data_dir, output_file, image_data, qqa):
                 answer      = question['multiple_choice_answer']
                 out.write(str(image_id) + "\t" + ques + "\t" + answer + "\n")
 
-def preprocess(data_dir):
+def preprocess(data_dir, num_train_samples = 20000, num_val_samples = 10000, num_test_samples = 20000):
     print("Preprocessing VQA 2.0 dataset!")
 
     ques_file         = "v2_OpenEnded_mscoco_train2014_questions.json"
@@ -58,11 +58,11 @@ def preprocess(data_dir):
     # numQ = [len(x) for k, x in imgToQA.items()]
     # min(numQ) # -> 3
 
-    num_train_samples = 20000
-    num_val_samples   = 10000
-    num_test_samples  = 20000
     num_samples       = num_train_samples + num_val_samples + num_test_samples
     num_ques_image    = 3
+
+    if num_samples > len(imgToQA):
+        print(f"Requested sampling of {num_samples} images which is more than the actual number of {len(imgToQa)} images!")
     
     print(f"Sampling {num_samples} images from train2014 folder!")
     imgToQAKeys       = imgToQA.keys()
@@ -77,7 +77,7 @@ def preprocess(data_dir):
     print(f"Sampling {num_test_samples} testing images!")
     test_images       = {k: imgToQA[k] for k in test_images}
 
-    print(f"Sampling {num_ques_image} per image!")
+    print(f"Sampling {num_ques_image} questions per image!")
     train_images      = {k: np.random.choice(d, num_ques_image, replace = False) for k, d in train_images.items()}
     val_images        = {k: np.random.choice(d, num_ques_image, replace = False) for k, d in val_images.items()}
     test_images       = {k: np.random.choice(d, num_ques_image, replace = False) for k, d in test_images.items()}
@@ -101,7 +101,7 @@ def save_answer_freqs():
 
     print("Saving answer frequencies from train data!")
 
-def save_vocab_questions(min_word_count = 5):
+def save_vocab_questions(min_word_count = 3):
     with open(os.path.join(data_dir, 'train_data.txt'), 'r') as f:
         data = f.read().strip().split('\n')
 
