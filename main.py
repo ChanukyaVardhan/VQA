@@ -42,8 +42,6 @@ def main():
     parser.add_argument('--beta1',            type=float, help='beta1 parameter', default=0.9)
     parser.add_argument('--beta2',            type=float, help='beta2 parameter', default=0.999)
 
-    parser.add_argument('--start_epoch',      type=int,   help='resume training from this epoch')
-
     parser.add_argument('--print_stats',      type=bool,  help='flag to print statistics', default=True)
     parser.add_argument('--print_epoch_freq', type=int,   help='epoch frequency to print stats', default=1)
     parser.add_argument('--print_step_freq',  type=int,   help='step frequency to print stats', default=50)
@@ -80,10 +78,9 @@ def main():
     # FIX THE SCHEDULER
     scheduler    = lr_scheduler.MultiStepLR(optimizer, milestones = [60, 120, 180], gamma = 0.1)
 
-    model, optim, best_accuracy, train_losses, train_accuracies, val_losses, val_accuracies = \
+    model, optim, best_accuracy = \
         train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device,
                     args.model_dir, args.log_dir, epochs = args.epochs,
-                    start_epoch = args.start_epoch if args.start_epoch else 1,
                     run_name = args.run_name, save_best_state = args.save_best_state,
                     print_stats = args.print_stats, print_epoch_freq = args.print_epoch_freq,
                     print_step_freq = args.print_step_freq)
