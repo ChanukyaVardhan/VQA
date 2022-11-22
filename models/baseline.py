@@ -5,23 +5,26 @@ import torchvision.models as models
 
 class ImageEncoder(nn.Module):
 
-    def __init__(self, output_size = 1024, image_channel_type = 'normi', trainable = False):
+    def __init__(self, output_size = 1024, image_channel_type = 'normi', use_embedding = True, trainable = False):
         super(ImageEncoder, self).__init__()
-        
+
         self.image_channel_type = image_channel_type
+        self.use_embedding      = use_embedding
         
-        self.model = models.vgg16(weights = models.VGG16_Weights.IMAGENET1K_V1)
+        self.model              = models.vgg16(weights = models.VGG16_Weights.IMAGENET1K_V1)
         if not trainable:
             for param in self.model.parameters():
                 param.requires_grad = False
-        self.model.classifier = nn.Sequential(*list(self.model.classifier)[:-1])
+        self.model.classifier   = nn.Sequential(*list(self.model.classifier)[:-1])
         
         self.fc    = nn.Sequential(
                          nn.Linear(4096, output_size),
                          nn.Tanh())
     
     def forward(self, images):
-        images          = self.model(images)
+        if not self.use_embedding:
+            images      = self.model(images)
+
         if self.image_channel_type == 'normi':
             images      = F.normalize(images, p = 2, dim = 1)
         image_embedding = self.fc(images)
@@ -35,7 +38,6 @@ class QuestionEncoder(nn.Module):
         super(QuestionEncoder, self).__init__()
         
         self.word_embeddings = nn.Sequential(
-                                   # nn.Embedding(vocab_size, word_embedding_size),
                                    nn.Embedding(vocab_size, word_embedding_size, padding_idx = 0),
                                    nn.Tanh())
         self.lstm            = nn.LSTM(input_size = word_embedding_size, hidden_size = hidden_size,
@@ -60,7 +62,7 @@ class QuestionEncoder(nn.Module):
 class VQABaseline(nn.Module):
 
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
-                 lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi',
+                 lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi', use_image_embedding = False,
                  dropout_prob = 0.5, train_cnn = False):
         super(VQABaseline, self).__init__()
         
@@ -68,6 +70,7 @@ class VQABaseline(nn.Module):
         
         self.image_encoder       = ImageEncoder(output_size            = embedding_size,
                                                 image_channel_type     = image_channel_type,
+                                                use_embedding          = use_image_embedding,
                                                 trainable              = train_cnn)
         self.question_encoder    = QuestionEncoder(vocab_size          = vocab_size,
                                                    word_embedding_size = word_embedding_size,

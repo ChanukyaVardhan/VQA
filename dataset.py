@@ -18,10 +18,11 @@ def pad_sequences(l, max_length):
 
 class VQADataset(Dataset):
     
-    def __init__(self, data_dir, transform = None, mode = 'train', top_k = 1000):
+    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = False, top_k = 1000):
         self.data_dir              = data_dir
         self.transform             = transform
         self.mode                  = mode
+        self.use_image_embedding   = use_image_embedding
         
         self.labelfreq             = pickle.load(open(os.path.join(data_dir, f'answers_freqs.pkl'), 'rb'))
         self.label2idx             = {x[0]: i+1 for i, x in enumerate(collections.Counter(self.labelfreq).most_common(n = top_k - 1))}
@@ -30,19 +31,9 @@ class VQADataset(Dataset):
         self.word2idx              = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"]
         self.max_length            = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["max_length"]
         
-        self.data_file             = None
-        self.img_dir               = None
-        if mode == 'train':
-            self.data_file         = 'train_data.txt'
-            self.img_dir           = 'train2014'
-        elif mode == 'val':
-            self.data_file         = 'val_data.txt'
-            self.img_dir           = 'val2014'
-        else:
-            self.data_file         = None
-            self.img_dir           = None
-            
-        
+        self.data_file             = f'{mode}_data.txt'
+        self.img_dir               = 'train2014'
+
         with open(os.path.join(data_dir, self.data_file), 'r') as f:
             self.data             = f.read().strip().split('\n')
     
@@ -52,14 +43,17 @@ class VQADataset(Dataset):
     def __getitem__(self, idx):
         image_id, question, answer = self.data[idx].strip().split('\t')
         
-        img = Image.open(f"{self.data_dir}/images/{self.img_dir}/COCO_{self.img_dir}_{int(image_id):012d}.jpg")
-        img = img.convert('RGB')
-        if self.transform:
-            img = self.transform(img)
+        if not self.use_image_embedding:
+            img = Image.open(f"{self.data_dir}/images/{self.img_dir}/COCO_{self.img_dir}_{int(image_id):012d}.jpg")
+            img = img.convert('RGB')
+            if self.transform:
+                img = self.transform(img)
+        else:
+            img = None
         
         question = [self.word2idx[w] if w in self.word2idx else self.word2idx['<unk>'] for w in question.split()]
         question = pad_sequences(question, self.max_length)
 
-        answer = self.label2idx[answer if answer in self.label2idx else '<unk>']
+        answer   = self.label2idx[answer if answer in self.label2idx else '<unk>']
 
         return img, question, answer
