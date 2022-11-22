@@ -70,10 +70,9 @@ def val(model, val_loader, loss_fn, device):
     return model, val_loss, val_accuracy
 
 def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device, save_directory, log_directory,
-                epochs = 25, start_epoch = 1, run_name = 'testrun', save_model = False, save_best_state = True,
+                epochs = 50, start_epoch = 1, run_name = 'testrun', save_model = False, save_best_state = True,
                 print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
     start_time       = time.time()
-    # Fix these?
     best_accuracy    = 0
     train_losses     = []
     train_accuracies = []
@@ -92,7 +91,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
     step_writer      = SummaryWriter(os.path.join(log_directory, run_name + "_step")) # CHANGE TO A SEPARATE DIRECTORY
     for epoch in range(start_epoch, epochs + 1):
         completed_steps   = (epoch - 1) * train_steps
-        
+
         train_start_time  = time.time()
         model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps,
                                                              print_step_freq = print_step_freq, print_stats = print_stats,

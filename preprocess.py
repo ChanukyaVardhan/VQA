@@ -107,7 +107,6 @@ def save_vocab_questions(min_word_count = 3):
 
     questions           = [x.split('\t')[1].strip() for x in data]
     words               = [x.split() for x in questions]
-    max_length          = max([len(x) for x in words])
     words               = [w for x in words for w in x]
     word_index          = [w for (w, freq) in collections.Counter(words).items() if freq > min_word_count]
     word_index          = {w: i+2 for i, w in enumerate(word_index)}
@@ -115,10 +114,9 @@ def save_vocab_questions(min_word_count = 3):
     word_index["<unk>"] = 1
     index_word          = {i: x for x, i in word_index.items()}
     print(f"Total number of words in questions in training data - {len(word_index)}!")
-    print(f"Max sequence length of a question in training data - {max_length}!")
 
     with open(os.path.join(data_dir, 'questions_vocab.pkl'), 'wb') as f:
-        pickle.dump({"word2idx": word_index, "idx2word": index_word, "max_length": max_length}, f)
+        pickle.dump({"word2idx": word_index, "idx2word": index_word}, f)
 
     print("Saving vocab for words in questions!")
 

@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--model',            type=str,   help='VQA model choice', choices=['baseline'], default='baseline', required=True)
 
     parser.add_argument('--top_k_answers',    type=int,   help='top k answers', default=1000)
+    parser.add_argument('--max_length',       type=int,   help='max sequence length of questions', default=14) # covers 99.69% of questions
 
     parser.add_argument('--batch_size',       type=int,   help='batch size per CPU/GPU', default=64)
     parser.add_argument('--epochs',           type=int,   help='number of epochs i.e., final epoch number', default=50)
@@ -59,13 +60,13 @@ def main():
                        transforms.CenterCrop(224),
                        transforms.ToTensor(),
                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, transform = transform)
-    val_ds       = VQADataset(args.data_dir, mode = 'val', top_k = args.top_k_answers, transform = transform)
-    test_ds      = VQADataset(args.data_dir, mode = 'test', top_k = args.top_k_answers, transform = transform)
+    train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, max_length = args.max_length, transform = transform)
+    val_ds       = VQADataset(args.data_dir, mode = 'val', top_k = args.top_k_answers, max_length = args.max_length, transform = transform)
+    test_ds      = VQADataset(args.data_dir, mode = 'test', top_k = args.top_k_answers, max_length = args.max_length, transform = transform)
 
     num_gpus     = torch.cuda.device_count()
     batch_size   = args.batch_size
-    if num_gpus: # Same batch size on each GPU
+    if num_gpus: # Same batch size on each GPU ,i.e, weak scaling
         batch_size *= num_gpus
     train_loader = DataLoader(train_ds, batch_size = batch_size, shuffle = True, num_workers = 2, pin_memory = True)
     val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
