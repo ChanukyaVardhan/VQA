@@ -18,7 +18,7 @@ def pad_sequences(l, max_length):
 
 class VQADataset(Dataset):
     
-    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = False, top_k = 1000):
+    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = False, top_k = 1000, max_length = 14):
         self.data_dir              = data_dir
         self.transform             = transform
         self.mode                  = mode
@@ -29,7 +29,7 @@ class VQADataset(Dataset):
         self.label2idx["<unk>"]    = 0
 
         self.word2idx              = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"]
-        self.max_length            = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["max_length"]
+        self.max_length            = max_length
         
         self.data_file             = f'{mode}_data.txt'
         self.img_dir               = 'train2014'
