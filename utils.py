@@ -7,9 +7,6 @@ import pandas as pd
 
 
 def parse_tb_logs(log_directory, model_name, epoch_or_step = 'epoch'):
-    # To-do:
-        # Sort the output on epoch/step
-        # Filter out values with same epoch/step but lesser wall_time
     if epoch_or_step == 'step':
         model_name   += '_step'
 
@@ -41,6 +38,10 @@ def parse_tb_logs(log_directory, model_name, epoch_or_step = 'epoch'):
         df['val_loss']        = val_losses['val_loss']
         df['val_accuracy']    = val_accuracies['val_accuracy']
         df                    = df.rename(columns = {'step': 'epoch'})
+
+    df = df.sort_values(by = 'wall_time', ascending = True)
+    df = df.drop_duplicates(['epoch'] if epoch_or_step == 'epoch' else ['step'], keep = 'last')
+
     df.to_csv(os.path.join(log_directory, model_name + '.csv'), index = False)
 
 def get_question_length_stats(data_directory):
