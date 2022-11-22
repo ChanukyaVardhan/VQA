@@ -70,7 +70,7 @@ def val(model, val_loader, loss_fn, device):
     return model, val_loss, val_accuracy
 
 def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device, save_directory, log_directory,
-                epochs = 25, start_epoch = 1, model_name = 'model', save_model = False, save_best_state = True,
+                epochs = 25, start_epoch = 1, run_name = 'testrun', save_model = False, save_best_state = True,
                 print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
     start_time       = time.time()
     # Fix these?
@@ -88,8 +88,8 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
         # PROBABLY READ THE EXISTING LOSS FILES AND FIGURE IT OUT
         # EVEN BEST ACCURACY SHOULD ALSO BE PROPERLY TAKEN CARE OF?
     # DO WE WANT LOSS VALUES FOR EACH STEP TO BE STORED?
-    epoch_writer     = SummaryWriter(os.path.join(log_directory, model_name)) # CHANGE TO A SEPARATE DIRECTORY
-    step_writer      = SummaryWriter(os.path.join(log_directory, model_name + "_step")) # CHANGE TO A SEPARATE DIRECTORY
+    epoch_writer     = SummaryWriter(os.path.join(log_directory, run_name)) # CHANGE TO A SEPARATE DIRECTORY
+    step_writer      = SummaryWriter(os.path.join(log_directory, run_name + "_step")) # CHANGE TO A SEPARATE DIRECTORY
     for epoch in range(start_epoch, epochs + 1):
         completed_steps   = (epoch - 1) * train_steps
         
@@ -115,7 +115,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
 
         if save_model:
             print(f"Saving model at epoch {epoch}!")
-            torch.save(model.state_dict(), os.path.join(save_directory, model_name + '_' + str(epoch) + '.pth'))
+            torch.save(model.state_dict(), os.path.join(save_directory, run_name + '_' + str(epoch) + '.pth'))
 
         if val_accuracy > best_accuracy:
             best_accuracy = val_accuracy
@@ -123,15 +123,14 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
 
             if save_best_state:
                 print(f"Saving best model with val accuracy {val_accuracy}!")
-                st = time.time()
-                torch.save(model.state_dict(), os.path.join(save_directory, model_name + '_best.pth'))
-                et = time.time()
-                print(f"Time to save best model {et - st} secs!")
+                torch.save(model.state_dict(), os.path.join(save_directory, run_name + '_best.pth'))
 
         epoch_writer.add_scalar('Train_Loss', train_loss, epoch)
         epoch_writer.add_scalar('Train_Accuracy', train_accuracy, epoch)
+        epoch_writer.add_scalar('Train_Time', train_time, epoch)
         epoch_writer.add_scalar('Val_Loss', val_loss, epoch)
         epoch_writer.add_scalar('Val_Accuracy', val_accuracy, epoch)
+        epoch_writer.add_scalar('Val_Time', val_time, epoch)
 
         if scheduler is not None:
             scheduler.step()
@@ -139,7 +138,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, 
     total_time = time.time() - start_time
     print(f'Best Val Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
 
-    if save_best_state:
+    if save_best_state and best_accuracy > 0:
         model.load_state_dict(best_weights)
 
     epoch_writer.close()
