@@ -35,7 +35,9 @@ class VQADataset(Dataset):
         self.img_dir               = 'train2014'
 
         with open(os.path.join(data_dir, self.data_file), 'r') as f:
-            self.data             = f.read().strip().split('\n')
+            self.data              = f.read().strip().split('\n')
+
+        self.image_features        = None
     
     def __len__(self):
         return len(self.data)
@@ -49,7 +51,10 @@ class VQADataset(Dataset):
             if self.transform:
                 img = self.transform(img)
         else:
-            img = None
+            if self.image_features == None:
+                # NEED A WAY TO DISTINGUISH BETWEEN VGG AND RESNET, PROBABLY KEEP THESE IN A FOLDER
+                self.image_features = pickle.load(open(os.path.join(self.data_dir, f'{self.mode}_image_embeddings.pkl'), 'rb'))
+            img  = self.image_features[image_id]
         
         question = [self.word2idx[w] if w in self.word2idx else self.word2idx['<unk>'] for w in question.split()]
         question = pad_sequences(question, self.max_length)
