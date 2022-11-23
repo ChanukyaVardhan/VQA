@@ -32,7 +32,7 @@ class VQADataset(Dataset):
         self.max_length            = max_length
         
         self.data_file             = f'{mode}_data.txt'
-        self.img_dir               = 'train2014'
+        self.img_dir               = f'{mode}2014'
 
         with open(os.path.join(data_dir, self.data_file), 'r') as f:
             self.data              = f.read().strip().split('\n')
