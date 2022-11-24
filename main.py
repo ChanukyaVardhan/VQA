@@ -1,7 +1,7 @@
 from dataset import VQADataset
 from models.baseline import VQABaseline
 from PIL import Image
-from torch.optim import Adam, lr_scheduler
+from torch.optim import Adadelta, lr_scheduler
 from torch.utils.data import Dataset, DataLoader
 from train import *
 from utils import *
@@ -37,11 +37,9 @@ def main():
     parser.add_argument('--top_k_answers',        type=int,   help='top k answers', default=1000)
     parser.add_argument('--max_length',           type=int,   help='max sequence length of questions', default=14) # covers 99.7% of questions
 
-    parser.add_argument('--batch_size',           type=int,   help='batch size per CPU/GPU', default=64)
+    parser.add_argument('--batch_size',           type=int,   help='batch size', default=512)
     parser.add_argument('--epochs',               type=int,   help='number of epochs i.e., final epoch number', default=50)
-    parser.add_argument('--learning_rate',        type=float, help='initial learning rate', default=0.001)
-    parser.add_argument('--beta1',                type=float, help='beta1 parameter', default=0.9)
-    parser.add_argument('--beta2',                type=float, help='beta2 parameter', default=0.999)
+    parser.add_argument('--learning_rate',        type=float, help='initial learning rate', default=1.0)
 
     parser.add_argument('--print_stats',          type=bool,  help='flag to print statistics', default=True)
     parser.add_argument('--print_epoch_freq',     type=int,   help='epoch frequency to print stats', default=1)
@@ -72,14 +70,12 @@ def main():
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
     model        = get_model(args.model, vocab_size, args.use_image_embedding)
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
-    optimizer    = Adam(model.parameters(), lr = args.learning_rate, betas = (args.beta1, args.beta2))
+    optimizer    = Adadelta(model.parameters(), lr = args.learning_rate)
     loss_fn      = nn.CrossEntropyLoss()
-    # FIX THE SCHEDULER
-    scheduler    = lr_scheduler.MultiStepLR(optimizer, milestones = [60, 120, 180], gamma = 0.1)
 
     model, optim, best_accuracy = \
         train_model(model, train_loader, val_loader, loss_fn, optimizer, device,
-                    args.model_dir, args.log_dir, epochs = args.epochs, scheduler = scheduler,
+                    args.model_dir, args.log_dir, epochs = args.epochs, 
                     run_name = args.run_name, save_best_state = args.save_best_state,
                     print_stats = args.print_stats, print_epoch_freq = args.print_epoch_freq,
                     print_step_freq = args.print_step_freq)
