@@ -15,7 +15,7 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, prin
     train_accuracy  = 0.0
     num_samples     = 0
 
-    for step, (images, questions, answers) in enumerate(train_loader):
+    for step, (images, questions, answers, _) in enumerate(train_loader):
         images           = images.to(device)
         questions        = questions.to(device)
         answers          = answers.to(device)
@@ -52,14 +52,15 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, prin
 
 def val(model, val_loader, loss_fn, device):
     """
-        calculate the validation loss and validation accuracy
+        calculate the validation loss and validation accuracy and also VQA accuracy metric
     """
     model.eval()
     val_loss     = 0.0
     val_accuracy = 0.0
+    vqa_accuracy = 0.0
     num_samples  = 0
 
-    for step, (images, questions, answers) in enumerate(val_loader):
+    for step, (images, questions, answers, all_answers) in enumerate(val_loader):
         images          = images.to(device)
         questions       = questions.to(device)
         answers         = answers.to(device)
@@ -70,13 +71,15 @@ def val(model, val_loader, loss_fn, device):
 
         _, pred_answers = torch.max(pred_scores, 1)
         val_accuracy   += (pred_answers == answers).sum().item()
+        vqa_accuracy   += (np.sum(pred_answers.cpu().numpy().reshape(-1, 1).repeat(10, axis = 1) == all_answers.numpy(), axis = 1) / 3.0).clip(max = 1.0).sum()
         
         num_samples    += images.size(0)
 
     val_loss           /= num_samples
     val_accuracy        = val_accuracy * 100.0 / num_samples
+    vqa_accuracy        = vqa_accuracy * 100.0 / num_samples
 
-    return model, val_loss, val_accuracy
+    return model, val_loss, val_accuracy, vqa_accuracy
 
 def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, save_directory, log_directory,
                 epochs = 50, scheduler = None, run_name = 'testrun', save_best_state = True, save_logs = True,
@@ -112,10 +115,11 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         start_epoch     = int(start_epoch) + 1
         best_accuracy   = float(best_accuracy)
         model.load_state_dict(torch.load(os.path.join(save_directory, run_name + '_best.pth'))) # load the model
-        print(f"Starting training from epoch - {start_epoch}!")
     else: # start training from 1st epoch
         best_accuracy   = 0
         start_epoch     = 1
+
+    print(f"Starting training from epoch - {start_epoch}!")
 
     if save_logs:
         epoch_writer      = SummaryWriter(os.path.join(log_directory, run_name)) # summary writer for epoch level stats
@@ -130,21 +134,21 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         train_time        = time.time() - train_start_time
 
         val_start_time    = time.time()
-        model, val_loss, val_accuracy = val(model, val_loader, loss_fn, device)
+        model, val_loss, val_accuracy, vqa_accuracy = val(model, val_loader, loss_fn, device)
         val_time          = time.time() - val_start_time
 
         # print statistics
         if print_stats and (epoch == 1 or epoch % print_epoch_freq == 0):
             print(f'Epoch - {epoch}, Train Loss - {train_loss:.4f}, Train Accuracy - {train_accuracy:.2f}, '
-                  f'Val Loss - {val_loss:.4f}, Val Accuracy - {val_accuracy:.2f}, '
+                  f'Val Loss - {val_loss:.4f}, Val Accuracy - {val_accuracy:.2f}, VQA Accuracy - {vqa_accuracy:.2f}, '
                   f'Train Time - {train_time:.2f} secs, Val Time - {val_time:.2f} secs')
 
-        if val_accuracy > best_accuracy: # forund a new best model
-            best_accuracy = val_accuracy
+        if vqa_accuracy > best_accuracy: # found a new best model
+            best_accuracy = vqa_accuracy
             best_weights  = deepcopy(model.state_dict())
 
             if save_best_state: # save the best model with the epoch number and accuracy
-                print(f"Saving best model with val accuracy {val_accuracy}!")
+                print(f"Saving best model with vqa accuracy {vqa_accuracy}!")
                 torch.save(model.state_dict(), os.path.join(save_directory, run_name + '_best.pth'))
                 with open(os.path.join(save_directory, best_epoch_file), 'w') as out:
                     out.write(str(epoch) + "\n")
@@ -157,13 +161,14 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
             epoch_writer.add_scalar('Train_Time', train_time, epoch)
             epoch_writer.add_scalar('Val_Loss', val_loss, epoch)
             epoch_writer.add_scalar('Val_Accuracy', val_accuracy, epoch)
+            epoch_writer.add_scalar('VQA_Accuracy', val_accuracy, epoch)
             epoch_writer.add_scalar('Val_Time', val_time, epoch)
 
         if scheduler is not None: # scheduler step
             scheduler.step()
 
     total_time = time.time() - start_time
-    print(f'Best Val Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
+    print(f'Best VQA Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
 
     if save_best_state and best_accuracy > 0: # load the model with best state
         model.load_state_dict(best_weights)
@@ -174,5 +179,30 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         step_writer.close()
 
     return model, optimizer, best_accuracy
+
+def get_VQA_accuracy(model, val_loader, device):
+    """
+        Computes the VQA accuracy metric, answer is deemed accurate if at least 
+        3 workers provided the exact answer
+    """
+    model.eval()
+    vqa_accuracy = 0.0
+    num_samples  = 0
+
+    for step, (images, questions, _, all_answers) in enumerate(val_loader):
+        images          = images.to(device)
+        questions       = questions.to(device)
+        all_answers     = all_answers.to(device)
+
+        pred_scores     = model(images, questions)
+        _, pred_answers = torch.max(pred_scores, 1)
+        
+        vqa_accuracy   += (np.sum(pred_answers.cpu().numpy().reshape(-1, 1).repeat(10, axis = 1) == all_answers.cpu().numpy(), axis = 1) / 3.0).clip(max = 1.0).sum()
+        num_samples    += images.size(0)
+
+    vqa_accuracy        = vqa_accuracy * 100.0 / num_samples
+    print(f'VQA Accuracy for the best model - {vqa_accuracy}')
+
+    return model, vqa_accuracy
 
 # WRITE A FUNCTION THAT TAKES AN IMAGE AND A QUESTION AND RETURNS THE ANSWER
