@@ -18,7 +18,7 @@ def get_model(model_type, vocab_size, use_image_embedding, use_dropout):
     model = None
 
     if model_type == 'baseline':
-        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = True)
+        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout)
     else:
         raise Exception(f'Model Type {model_type} is not supported')
 
