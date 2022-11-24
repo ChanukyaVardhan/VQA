@@ -2,8 +2,7 @@
 
 #########################################################
 
-# One may need to change directory for datasets like this.
-#set DATASETS_DIR = "/run/media/hoosiki/WareHouse3/mtb/datasets/VQA"
+# Set the appropriate directory to download the datasets to
 
 mkdir -p "/scratch/crg9968/datasets"
 set DATASETS_DIR = "/scratch/crg9968/datasets"
