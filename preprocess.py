@@ -1,7 +1,8 @@
 """
 Given the directory where the questions & annotations files are saved, this generates a processed 
-data file (.txt) in the `image_id`\t`question`\t`answer` format (question and answer are 
-space separated strings). The files are stored in the same data directory passed as input
+data file (.txt) in the `image_id`\t`question`\t`answer`\t`answers` format (question and answer are 
+space separated strings, 10 human answers are ^ separated string).
+The files are stored in the same data directory passed as input
 
 python preprocess.py --data_dir ../Dataset
 """
@@ -34,7 +35,7 @@ def preprocess_text(text):
 def preprocess(data_dir, mode = 'train'):
     """
         Reads the question and annotation files in data_dir given a mode (train/val),
-        and processes them in `image_id`\t`question`\t`answer` format, and saves them
+        and processes them in `image_id`\t`question`\t`answer`\t`answers` format, and saves them
         in .txt files in the same data_dir
     """
     print(f"Preprocessing VQA 2.0 dataset for {mode}!")
