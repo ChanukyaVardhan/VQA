@@ -82,6 +82,8 @@ def main():
                     print_stats = args.print_stats, print_epoch_freq = args.print_epoch_freq,
                     print_step_freq = args.print_step_freq)
 
+    model, vqa_accuracy = get_VQA_accuracy(model, val_loader, device)
+
     parse_tb_logs(args.log_dir, args.run_name, 'epoch')
     parse_tb_logs(args.log_dir, args.run_name, 'step')
 
