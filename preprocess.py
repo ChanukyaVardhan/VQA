@@ -1,3 +1,11 @@
+"""
+Given the directory where the questions & annotations files are saved, this generates a processed 
+data file (.txt) in the `image_id`\t`question`\t`answer` format (question and answer are 
+space separated strings). The files are stored in the same data directory passed as input
+
+python preprocess.py --data_dir ../Dataset
+"""
+
 import argparse
 import collections
 import json
@@ -6,6 +14,9 @@ import pickle
 import string
 
 def preprocess_text(text):
+    """
+        Converts a string to lower case, removes punctuations.
+    """
     text_token_list = text.strip().split(',')
     text  = ' '.join(text_token_list)
 
@@ -21,6 +32,11 @@ def preprocess_text(text):
     return text
 
 def preprocess(data_dir, mode = 'train'):
+    """
+        Reads the question and annotation files in data_dir given a mode (train/val),
+        and processes them in `image_id`\t`question`\t`answer` format, and saves them
+        in .txt files in the same data_dir
+    """
     print(f"Preprocessing VQA 2.0 dataset for {mode}!")
 
     ques_file         = f"v2_OpenEnded_mscoco_{mode}2014_questions.json"
@@ -44,6 +60,10 @@ def preprocess(data_dir, mode = 'train'):
     print("Completed preprocessing VQA 2.0 dataset!")
 
 def save_answer_freqs(data_dir):
+    """
+        Reads the preprocessed train_data.txt file in data_dir, calculates the
+        frequences of answers, and saves them in answers_freqs.pkl file
+    """
     with open(os.path.join(data_dir, 'train_data.txt'), 'r') as f:
         data = f.read().strip().split('\n')
 
@@ -57,6 +77,10 @@ def save_answer_freqs(data_dir):
     print("Saving answer frequencies from train data!")
 
 def save_vocab_questions(data_dir, min_word_count = 3):
+    """
+        Reads the preprocessed train_data.txt file in data_dir and saves the vocabulary
+        of words for the questions in questions_vocab.pkl file
+    """
     with open(os.path.join(data_dir, 'train_data.txt'), 'r') as f:
         data = f.read().strip().split('\n')
 
@@ -87,5 +111,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# python3 preprocess.py --data_dir ../Dataset

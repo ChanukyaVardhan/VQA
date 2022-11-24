@@ -78,8 +78,8 @@ def main():
     scheduler    = lr_scheduler.MultiStepLR(optimizer, milestones = [60, 120, 180], gamma = 0.1)
 
     model, optim, best_accuracy = \
-        train_model(model, train_loader, val_loader, loss_fn, optimizer, scheduler, device,
-                    args.model_dir, args.log_dir, epochs = args.epochs,
+        train_model(model, train_loader, val_loader, loss_fn, optimizer, device,
+                    args.model_dir, args.log_dir, epochs = args.epochs, scheduler = scheduler,
                     run_name = args.run_name, save_best_state = args.save_best_state,
                     print_stats = args.print_stats, print_epoch_freq = args.print_epoch_freq,
                     print_step_freq = args.print_step_freq)
