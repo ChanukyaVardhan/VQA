@@ -92,10 +92,8 @@ class VQABaseline(nn.Module):
         
         self.mlp                 = nn.Sequential()
         self.mlp.append(nn.Linear(embedding_size, 1000))
-        if use_dropout:
-            self.mlp.append(nn.Dropout(dropout_prob))
-        self.mlp.append(nn.Tanh())
         self.mlp.append(nn.Dropout(dropout_prob)) # part of the base line model by default
+        self.mlp.append(nn.Tanh())
         self.mlp.append(nn.Linear(1000, output_size))
 
     def forward(self, images, questions):

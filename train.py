@@ -15,7 +15,7 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, prin
     train_accuracy  = 0.0
     num_samples     = 0
 
-    for step, (images, questions, answers, _) in enumerate(train_loader):
+    for step, (images, questions, answers, all_answers) in enumerate(train_loader):
         images           = images.to(device)
         questions        = questions.to(device)
         answers          = answers.to(device)
@@ -189,7 +189,7 @@ def get_VQA_accuracy(model, val_loader, device):
     vqa_accuracy = 0.0
     num_samples  = 0
 
-    for step, (images, questions, _, all_answers) in enumerate(val_loader):
+    for step, (images, questions, answers, all_answers) in enumerate(val_loader):
         images          = images.to(device)
         questions       = questions.to(device)
         all_answers     = all_answers.to(device)
