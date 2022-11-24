@@ -6,7 +6,7 @@ import torchvision.models as models
 class ImageEncoder(nn.Module):
 
     def __init__(self, output_size = 1024, image_channel_type = 'normi', use_embedding = True, trainable = False,
-                 dropout_prob = 0.5, use_dropout = True):
+                 dropout_prob = 0.5, use_dropout = False):
         super(ImageEncoder, self).__init__()
 
         self.image_channel_type = image_channel_type
@@ -62,6 +62,7 @@ class QuestionEncoder(nn.Module):
         x                  = torch.cat((hidden, cell), 2)
         x                  = x.transpose(0, 1)
         x                  = x.reshape(x.size()[0], -1)
+        x                  = nn.Tanh()(x)
         question_embedding = self.fc(x)
         
         return question_embedding
