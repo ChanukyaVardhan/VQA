@@ -143,12 +143,12 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
                   f'Val Loss - {val_loss:.4f}, Val Accuracy - {val_accuracy:.2f}, VQA Accuracy - {vqa_accuracy:.2f}, '
                   f'Train Time - {train_time:.2f} secs, Val Time - {val_time:.2f} secs')
 
-        if vqa_accuracy > best_accuracy: # found a new best model
-            best_accuracy = vqa_accuracy
+        if val_accuracy > best_accuracy: # found a new best model
+            best_accuracy = val_accuracy
             best_weights  = deepcopy(model.state_dict())
 
             if save_best_state: # save the best model with the epoch number and accuracy
-                print(f"Saving best model with vqa accuracy {vqa_accuracy}!")
+                print(f"Saving best model with val accuracy {val_accuracy}!")
                 torch.save(model.state_dict(), os.path.join(save_directory, run_name + '_best.pth'))
                 with open(os.path.join(save_directory, best_epoch_file), 'w') as out:
                     out.write(str(epoch) + "\n")
@@ -161,14 +161,14 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
             epoch_writer.add_scalar('Train_Time', train_time, epoch)
             epoch_writer.add_scalar('Val_Loss', val_loss, epoch)
             epoch_writer.add_scalar('Val_Accuracy', val_accuracy, epoch)
-            epoch_writer.add_scalar('VQA_Accuracy', val_accuracy, epoch)
+            epoch_writer.add_scalar('VQA_Accuracy', vqa_accuracy, epoch)
             epoch_writer.add_scalar('Val_Time', val_time, epoch)
 
         if scheduler is not None: # scheduler step
             scheduler.step()
 
     total_time = time.time() - start_time
-    print(f'Best VQA Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
+    print(f'Best val Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
 
     if save_best_state and best_accuracy > 0: # load the model with best state
         model.load_state_dict(best_weights)

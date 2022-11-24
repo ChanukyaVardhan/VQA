@@ -24,6 +24,7 @@ def parse_tb_logs(log_directory, run_name, epoch_or_step = 'epoch'):
     train_accuracies  = []
     val_losses        = []
     val_accuracies    = []
+    vqa_accuracies    = []
 
     directory         = os.path.join(log_directory, run_name)
     for filename in os.listdir(directory):
