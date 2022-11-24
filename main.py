@@ -14,11 +14,11 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
-def get_model(model_type, vocab_size, use_image_embedding):
+def get_model(model_type, vocab_size, use_image_embedding, use_dropout):
     model = None
 
     if model_type == 'baseline':
-        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding)
+        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = True)
     else:
         raise Exception(f'Model Type {model_type} is not supported')
 
@@ -40,6 +40,8 @@ def main():
     parser.add_argument('--batch_size',           type=int,   help='batch size', default=512)
     parser.add_argument('--epochs',               type=int,   help='number of epochs i.e., final epoch number', default=50)
     parser.add_argument('--learning_rate',        type=float, help='initial learning rate', default=1.0)
+    parser.add_argument('--use_dropout',          type=bool,  help='use dropout', default=False)
+    # parser.add_argument('--dropout_prob',         type=float, help='dropout probability', default=0.5)
 
     parser.add_argument('--print_stats',          type=bool,  help='flag to print statistics', default=True)
     parser.add_argument('--print_epoch_freq',     type=int,   help='epoch frequency to print stats', default=1)
@@ -62,13 +64,13 @@ def main():
 
     num_gpus     = torch.cuda.device_count()
     batch_size   = args.batch_size
-    if num_gpus: # Same batch size on each GPU ,i.e, weak scaling
-        batch_size *= num_gpus
+    # if num_gpus: # Same batch size on each GPU ,i.e, weak scaling
+    #     batch_size *= num_gpus
     train_loader = DataLoader(train_ds, batch_size = batch_size, shuffle = True, num_workers = 2, pin_memory = True)
     val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
 
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
-    model        = get_model(args.model, vocab_size, args.use_image_embedding)
+    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout)
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
     optimizer    = Adadelta(model.parameters(), lr = args.learning_rate)
     loss_fn      = nn.CrossEntropyLoss()

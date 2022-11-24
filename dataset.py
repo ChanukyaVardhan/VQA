@@ -56,7 +56,7 @@ class VQADataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        image_id, question, answer = self.data[idx].strip().split('\t')
+        image_id, question, answer, all_answers = self.data[idx].strip().split('\t')
         
         if not self.use_image_embedding: # If not use embedding, load the image and apply transform
             img = Image.open(f"{self.data_dir}/images/{self.img_dir}/COCO_{self.img_dir}_{int(image_id):012d}.jpg")
@@ -76,4 +76,8 @@ class VQADataset(Dataset):
         # convert answer words to indexes
         answer   = self.label2idx[answer if answer in self.label2idx else '<unk>']
 
-        return img, question, answer
+        # convert all 10 answers to tokens
+        all_answers = all_answers.strip().split("^")
+        all_answers = np.array([self.label2idx[a if a in self.label2idx else '<unk>'] for a in all_answers])
+
+        return img, question, answer, all_answers

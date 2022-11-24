@@ -54,8 +54,10 @@ def preprocess(data_dir, mode = 'train'):
         for question, annotation in zip(questions['questions'], annotations['annotations']):
             image_id  = question['image_id']
             ques      = preprocess_text(question['question'])
-            answer    = annotation['multiple_choice_answer']
-            out.write(str(image_id) + "\t" + ques + "\t" + answer + "\n")
+            answer    = annotation['multiple_choice_answer'] # Most frequent ground truth answer
+            answers   = [a['answer'] for a in annotation['answers']]
+            answers   = '^'.join(answers)
+            out.write(str(image_id) + "\t" + ques + "\t" + answer + "\t" + answers + "\n")
     
     print("Completed preprocessing VQA 2.0 dataset!")
 
