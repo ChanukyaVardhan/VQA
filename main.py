@@ -1,7 +1,7 @@
 from dataset import VQADataset
 from models.baseline import VQABaseline
 from PIL import Image
-from torch.optim import Adadelta, lr_scheduler
+from torch.optim import Adadelta, Adam, lr_scheduler, RMSprop
 from torch.utils.data import Dataset, DataLoader
 from train import *
 from utils import *
@@ -40,6 +40,7 @@ def main():
     parser.add_argument('--batch_size',           type=int,   help='batch size', default=512)
     parser.add_argument('--epochs',               type=int,   help='number of epochs i.e., final epoch number', default=50)
     parser.add_argument('--learning_rate',        type=float, help='initial learning rate', default=1.0)
+    parser.add_argument('--optimizer',            type=str,   help='choice of optimizer', choices=['adam', 'adadelta', 'rmsprop'], default='adadelta')
     parser.add_argument('--use_dropout',          type=bool,  help='use dropout', default=False)
     # parser.add_argument('--dropout_prob',         type=float, help='dropout probability', default=0.5)
 
@@ -72,12 +73,17 @@ def main():
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
     model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout)
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
-    optimizer    = Adadelta(model.parameters(), lr = args.learning_rate)
+    if args.optimizer == 'adam':
+        optimizer = Adam(model.parameters(), lr = args.learning_rate)
+    elif args.optimizer == 'rmsprop':
+        optimizer = RMSprop(model.parameters(), lr = args.learning_rate)
+    else:
+        optimizer = Adadelta(model.parameters(), lr = args.learning_rate)
     loss_fn      = nn.CrossEntropyLoss()
 
     model, optim, best_accuracy = \
         train_model(model, train_loader, val_loader, loss_fn, optimizer, device,
-                    args.model_dir, args.log_dir, epochs = args.epochs, 
+                    args.model_dir, args.log_dir, args.learning_rate, epochs = args.epochs,
                     run_name = args.run_name, save_best_state = args.save_best_state,
                     print_stats = args.print_stats, print_epoch_freq = args.print_epoch_freq,
                     print_step_freq = args.print_step_freq)
@@ -90,4 +96,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-# python3 main.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../ --log_dir ../ --epochs 4
+# python3 main.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --epochs 4

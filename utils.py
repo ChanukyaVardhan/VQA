@@ -115,7 +115,7 @@ def plot_vqa_accuracy(log_directory, run_name):
     """
     df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
 
-    plt.plot(df[epoch_or_step].values, df["vqa_accuracy"].values, label = "VQA Accuracy")
+    plt.plot(df['epoch'].values, df["vqa_accuracy"].values, label = "VQA Accuracy")
     plt.xlabel("Number of Epochs")
     plt.ylabel("VQA Accuracy")
     plt.legend()
