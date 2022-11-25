@@ -22,7 +22,7 @@ def pad_sequences(l, max_length):
 
 class VQADataset(Dataset):
     
-    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = False, top_k = 1000, max_length = 14):
+    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = True, top_k = 1000, max_length = 14):
         """
             - data_dir:            directory of images and preprocessed data
             - transform:           any transformations to be applied to image (if not using embeddings)

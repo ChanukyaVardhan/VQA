@@ -96,6 +96,7 @@ def plot_train_val_stats(log_directory, run_name, epoch_or_step = 'epoch'):
         plt.plot(df[epoch_or_step].values, df["val_loss"].values, label = "Val Loss")
     plt.xlabel("Number of Epochs" if epoch_or_step == 'epoch' else "Number of Steps")
     plt.ylabel("Loss")
+    plt.title("Loss vs Number of Epochs" if epoch_or_step == 'epoch' else "Number of Steps")
     plt.legend()
 
     # Accuracy plot
@@ -105,9 +106,9 @@ def plot_train_val_stats(log_directory, run_name, epoch_or_step = 'epoch'):
         plt.plot(df[epoch_or_step].values, df["val_accuracy"].values, label = "Val Accuracy")
     plt.xlabel("Number of Epochs" if epoch_or_step == 'epoch' else "Number of Steps")
     plt.ylabel("Accuracy")
+    plt.title("Accuracy vs Number of Epochs" if epoch_or_step == 'epoch' else "Number of Steps")
     plt.legend()
     plt.show()
-
 
 def plot_vqa_accuracy(log_directory, run_name):
     """
@@ -118,5 +119,53 @@ def plot_vqa_accuracy(log_directory, run_name):
     plt.plot(df['epoch'].values, df["vqa_accuracy"].values, label = "VQA Accuracy")
     plt.xlabel("Number of Epochs")
     plt.ylabel("VQA Accuracy")
+    plt.title("VQA Accuracy vs Number of Epochs")
     plt.legend()
+    plt.show()
+
+def plot_all_accuracies(log_directory, run_names):
+    """
+        plots separate plots of train, val and vqa accuracy for all the run_names together
+    """
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+    plt.sca(axs[0])
+    for run_name in run_names:
+        df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
+        plt.plot(df['epoch'].values, df["train_accuracy"].values, label = run_name)
+    plt.xlabel("Number of Epochs")
+    plt.ylabel("Train Accuracy")
+    plt.title("Train Accuracy vs Number of Epochs")
+    plt.legend()
+    
+    plt.sca(axs[1])
+    for run_name in run_names:
+        df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
+        plt.plot(df['epoch'].values, df["val_accuracy"].values, label = run_name)
+    plt.xlabel("Number of Epochs")
+    plt.ylabel("Val Accuracy")
+    plt.title("Val Accuracy vs Number of Epochs")
+    plt.legend()
+    
+    plt.sca(axs[2])
+    for run_name in run_names:
+        df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
+        plt.plot(df['epoch'].values, df["vqa_accuracy"].values, label = run_name)
+    plt.xlabel("Number of Epochs")
+    plt.ylabel("VQA Accuracy")
+    plt.title("VQA Accuracy vs Number of Epochs")
+    plt.legend()
+    plt.show()
+
+def plot_lr_explore_adam(log_directory, run_name = 'lr_adam'):
+    """
+        plots the loss vs learning rate for the first 5 epochs of training to explore adam optimizer
+    """
+    df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
+    plt.plot(df['lr'].values, df['loss'].values)
+    plt.xscale('log')
+    plt.xlabel("Learning Rate (Log Scale)")
+    plt.ylabel("Loss")
+    plt.title("Training Loss vs Learning Rate")
+    plt.ylim([0, 9])
+    # plt.xlim([1e-7, 1e-2])
     plt.show()
