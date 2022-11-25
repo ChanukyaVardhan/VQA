@@ -6,7 +6,20 @@ import os
 import time
 import torch
 
-def train(model, train_loader, loss_fn, optimizer, device, completed_steps, print_step_freq = 50, print_stats = True, step_writer = None):
+def update_learning_rate(optimizer, steps, initial_lr):
+    if optimizer.__class__.__name__ == 'Adam':
+        if initial_lr == 0.00003:
+            lr = initial_lr * 0.5**(float(steps) / 25000) # 0.00003
+        elif initial_lr == 0.0001:
+            lr = initial_lr * 0.5**(float(steps) / 17000) # 0.0001
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+    elif optimizer.__class__.__name__ == 'RMSprop':
+        lr = initial_lr * 0.5**(np.floor(steps / 50000))
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+def train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr, print_step_freq = 50, print_stats = True, step_writer = None):
     """
         train the model for an epoch with data from train_loader on device
     """
@@ -35,6 +48,8 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, prin
         num_samples     += images.size(0)
 
         completed_steps += 1
+        if optimizer.__class__.__name__ != 'Adadelta':
+            update_learning_rate(optimizer, completed_steps, initial_lr)
 
         # print train statistics
         if print_stats and (completed_steps == 1 or completed_steps % print_step_freq == 0):
@@ -81,8 +96,8 @@ def val(model, val_loader, loss_fn, device):
 
     return model, val_loss, val_accuracy, vqa_accuracy
 
-def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, save_directory, log_directory,
-                epochs = 50, scheduler = None, run_name = 'testrun', save_best_state = True, save_logs = True,
+def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, save_directory, log_directory, initial_lr,
+                epochs = 50, run_name = 'testrun', save_best_state = True, save_logs = True,
                 print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
     """
         - model:               model to train loaded on the device
@@ -93,8 +108,8 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         - device:              device to run training on
         - save_directory:      directory to save the best model checkpoints (indexes on run_name)
         - log_directory:       directory to log training statistics at epoch and step level (indexes on run_name)
+        - initial_lr:          initial learning rate, will be decayed based on number of completed iterations for adam and rmsprop
         - epochs:              number of epochs to train (this is the final_epoch number, training starts from existing best epoch)
-        - scheduler:           scheduler for the optimizer
         - run_name:            unique identifier for the experiment, all the checkpoints and logs are saved using this run_name
         - save_best_state:     saves the best performing model on validation set accuracy (this can used to resume training as well)
         - save_logs:           save logs to log_directory
@@ -119,6 +134,10 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         best_accuracy   = 0
         start_epoch     = 1
 
+    # update learning rate to the epoch
+    completed_steps     = (start_epoch - 1) * train_steps
+    update_learning_rate(optimizer, completed_steps, initial_lr)
+
     print(f"Starting training from epoch - {start_epoch}!")
 
     if save_logs:
@@ -128,7 +147,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         completed_steps   = (epoch - 1) * train_steps
 
         train_start_time  = time.time()
-        model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps,
+        model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr,
                                                              print_step_freq = print_step_freq, print_stats = print_stats,
                                                              step_writer = step_writer if save_logs else None)
         train_time        = time.time() - train_start_time
@@ -163,9 +182,6 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
             epoch_writer.add_scalar('Val_Accuracy', val_accuracy, epoch)
             epoch_writer.add_scalar('VQA_Accuracy', vqa_accuracy, epoch)
             epoch_writer.add_scalar('Val_Time', val_time, epoch)
-
-        if scheduler is not None: # scheduler step
-            scheduler.step()
 
     total_time = time.time() - start_time
     print(f'Best val Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
