@@ -9,8 +9,11 @@
     │	 └── baseline.py      # baseline model from VQA paper
     ├── preprocess.py         # preprocess the VQA2.0 data and save vocabulary files
     ├── README.md             # readme file
+    ├── test_lr.py            # script to explore learning rate for adam optimizer
     ├── train.py              # function to train the model
-    └── utils.py              # utility functions
+    ├── utils.py              # utility functions
+    └── vectorize_images.py   # save image embeddings to pickle file
+
 
 ## Download Datasets
 Run `download_datasets.sh` script to download the VQA2.0 dataset from the official site. This includes the annotations, questions and the images. Set the appropriate dataset directory to download them to in the script.
