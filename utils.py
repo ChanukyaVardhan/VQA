@@ -3,6 +3,9 @@ Utility functions:
 -> parse tensorboard event logs and save into csvs
 -> generate statistics of length of questions
 -> plot training and validation statistics
+-> plot vqa accuracy
+-> plot all accuracies
+-> plot learning rate vs loss for adam optimizer
 """
 from tensorboard.backend.event_processing import event_accumulator
 

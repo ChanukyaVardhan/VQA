@@ -11,7 +11,9 @@ def update_learning_rate(optimizer, steps, initial_lr):
         if initial_lr == 0.00003:
             lr = initial_lr * 0.5**(float(steps) / 25000) # 0.00003
         elif initial_lr == 0.0001:
-            lr = initial_lr * 0.5**(float(steps) / 17000) # 0.0001
+            # lr = initial_lr * 0.5**(float(steps) / 17000) # 0.0001
+            # lr = initial_lr * 0.9**(float(steps) / 17000) # 0.0001
+            lr = initial_lr * 0.9**(float(steps) / 50000) # 0.0001
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
     elif optimizer.__class__.__name__ == 'RMSprop':
@@ -48,7 +50,7 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, init
         num_samples     += images.size(0)
 
         completed_steps += 1
-        if optimizer.__class__.__name__ != 'Adadelta':
+        if optimizer.__class__.__name__ == 'Adam' or optimizer.__class__.__name__ == 'RMSprop':
             update_learning_rate(optimizer, completed_steps, initial_lr)
 
         # print train statistics
@@ -86,6 +88,7 @@ def val(model, val_loader, loss_fn, device):
 
         _, pred_answers = torch.max(pred_scores, 1)
         val_accuracy   += (pred_answers == answers).sum().item()
+        all_answers[all_answers == 0] = 30000 # so we don't match answers that are not in vocabulary
         vqa_accuracy   += (np.sum(pred_answers.cpu().numpy().reshape(-1, 1).repeat(10, axis = 1) == all_answers.numpy(), axis = 1) / 3.0).clip(max = 1.0).sum()
         
         num_samples    += images.size(0)
@@ -162,12 +165,12 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
                   f'Val Loss - {val_loss:.4f}, Val Accuracy - {val_accuracy:.2f}, VQA Accuracy - {vqa_accuracy:.2f}, '
                   f'Train Time - {train_time:.2f} secs, Val Time - {val_time:.2f} secs')
 
-        if val_accuracy > best_accuracy: # found a new best model
-            best_accuracy = val_accuracy
+        if vqa_accuracy > best_accuracy: # found a new best model
+            best_accuracy = vqa_accuracy
             best_weights  = deepcopy(model.state_dict())
 
             if save_best_state: # save the best model with the epoch number and accuracy
-                print(f"Saving best model with val accuracy {val_accuracy}!")
+                print(f"Saving best model with vqa accuracy {vqa_accuracy}!")
                 torch.save(model.state_dict(), os.path.join(save_directory, run_name + '_best.pth'))
                 with open(os.path.join(save_directory, best_epoch_file), 'w') as out:
                     out.write(str(epoch) + "\n")
@@ -184,7 +187,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
             epoch_writer.add_scalar('Val_Time', val_time, epoch)
 
     total_time = time.time() - start_time
-    print(f'Best val Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
+    print(f'Best VQA Accuracy - {best_accuracy}, Total Train Time - {total_time:.2f} secs')
 
     if save_best_state and best_accuracy > 0: # load the model with best state
         model.load_state_dict(best_weights)
@@ -208,6 +211,7 @@ def get_VQA_accuracy(model, val_loader, device):
     for step, (images, questions, answers, all_answers) in enumerate(val_loader):
         images          = images.to(device)
         questions       = questions.to(device)
+        all_answers[all_answers == 0] = 30000 # so we don't match answers that are not in vocabulary
         all_answers     = all_answers.to(device)
 
         pred_scores     = model(images, questions)
