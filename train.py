@@ -6,22 +6,7 @@ import os
 import time
 import torch
 
-def update_learning_rate(optimizer, steps, initial_lr):
-    if optimizer.__class__.__name__ == 'Adam':
-        if initial_lr == 0.00003:
-            lr = initial_lr * 0.5**(float(steps) / 25000) # 0.00003
-        elif initial_lr == 0.0001:
-            # lr = initial_lr * 0.5**(float(steps) / 17000) # 0.0001
-            # lr = initial_lr * 0.9**(float(steps) / 17000) # 0.0001
-            lr = initial_lr * 0.9**(float(steps) / 50000) # 0.0001
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
-    elif optimizer.__class__.__name__ == 'RMSprop':
-        lr = initial_lr * 0.5**(np.floor(steps / 50000))
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
-
-def train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr, print_step_freq = 50, print_stats = True, step_writer = None):
+def train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr, use_sigmoid = False, print_step_freq = 50, print_stats = True, step_writer = None):
     """
         train the model for an epoch with data from train_loader on device
     """
@@ -30,15 +15,16 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, init
     train_accuracy  = 0.0
     num_samples     = 0
 
-    for step, (images, questions, answers, all_answers) in enumerate(train_loader):
+    for step, (images, questions, answers, all_answers, ans_score) in enumerate(train_loader):
         images           = images.to(device)
         questions        = questions.to(device)
         answers          = answers.to(device)
+        ans_score        = ans_score.to(device)
 
         optimizer.zero_grad()
 
         pred_scores      = model(images, questions)
-        l                = loss_fn(pred_scores, answers)
+        l                = loss_fn(pred_scores, ans_score) * ans_score.size(1) if use_sigmoid else loss_fn(pred_scores, answers)
         train_loss      += l.item() * images.size(0)
 
         _, pred_answers  = torch.max(pred_scores, 1)
@@ -48,10 +34,7 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, init
         optimizer.step()
         
         num_samples     += images.size(0)
-
         completed_steps += 1
-        if optimizer.__class__.__name__ == 'Adam' or optimizer.__class__.__name__ == 'RMSprop':
-            update_learning_rate(optimizer, completed_steps, initial_lr)
 
         # print train statistics
         if print_stats and (completed_steps == 1 or completed_steps % print_step_freq == 0):
@@ -67,7 +50,7 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, init
 
     return model, optimizer, train_loss, train_accuracy
 
-def val(model, val_loader, loss_fn, device):
+def val(model, val_loader, loss_fn, device, use_sigmoid = False):
     """
         calculate the validation loss and validation accuracy and also VQA accuracy metric
     """
@@ -77,13 +60,14 @@ def val(model, val_loader, loss_fn, device):
     vqa_accuracy = 0.0
     num_samples  = 0
 
-    for step, (images, questions, answers, all_answers) in enumerate(val_loader):
+    for step, (images, questions, answers, all_answers, ans_score) in enumerate(val_loader):
         images          = images.to(device)
         questions       = questions.to(device)
         answers         = answers.to(device)
+        ans_score       = ans_score.to(device)
 
         pred_scores     = model(images, questions)
-        l               = loss_fn(pred_scores, answers)
+        l               = loss_fn(pred_scores, ans_score) * ans_score.size(1) if use_sigmoid else loss_fn(pred_scores, answers)
         val_loss       += l.item() * images.size(0)
 
         _, pred_answers = torch.max(pred_scores, 1)
@@ -100,7 +84,7 @@ def val(model, val_loader, loss_fn, device):
     return model, val_loss, val_accuracy, vqa_accuracy
 
 def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, save_directory, log_directory, initial_lr,
-                epochs = 50, run_name = 'testrun', save_best_state = True, save_logs = True,
+                epochs = 50, run_name = 'testrun', use_sigmoid = False, save_best_state = True, save_logs = True,
                 print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
     """
         - model:               model to train loaded on the device
@@ -133,13 +117,14 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         start_epoch     = int(start_epoch) + 1
         best_accuracy   = float(best_accuracy)
         model.load_state_dict(torch.load(os.path.join(save_directory, run_name + '_best.pth'))) # load the model
+        best_weights    = deepcopy(model.state_dict())
     else: # start training from 1st epoch
         best_accuracy   = 0
         start_epoch     = 1
+        best_weights    = None
 
     # update learning rate to the epoch
     completed_steps     = (start_epoch - 1) * train_steps
-    update_learning_rate(optimizer, completed_steps, initial_lr)
 
     print(f"Starting training from epoch - {start_epoch}!")
 
@@ -151,12 +136,13 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
 
         train_start_time  = time.time()
         model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr,
+                                                             use_sigmoid = use_sigmoid,
                                                              print_step_freq = print_step_freq, print_stats = print_stats,
                                                              step_writer = step_writer if save_logs else None)
         train_time        = time.time() - train_start_time
 
         val_start_time    = time.time()
-        model, val_loss, val_accuracy, vqa_accuracy = val(model, val_loader, loss_fn, device)
+        model, val_loss, val_accuracy, vqa_accuracy = val(model, val_loader, loss_fn, device, use_sigmoid = use_sigmoid)
         val_time          = time.time() - val_start_time
 
         # print statistics
@@ -208,7 +194,7 @@ def get_VQA_accuracy(model, val_loader, device):
     vqa_accuracy = 0.0
     num_samples  = 0
 
-    for step, (images, questions, answers, all_answers) in enumerate(val_loader):
+    for step, (images, questions, answers, all_answers, ans_score) in enumerate(val_loader):
         images          = images.to(device)
         questions       = questions.to(device)
         all_answers[all_answers == 0] = 30000 # so we don't match answers that are not in vocabulary

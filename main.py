@@ -4,7 +4,7 @@ from PIL import Image
 from torch.optim import Adadelta, Adam, lr_scheduler, RMSprop
 from torch.utils.data import Dataset, DataLoader
 from train import *
-from utils import *
+from utils import parse_tb_logs
 
 import argparse
 import os
@@ -14,11 +14,11 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
-def get_model(model_type, vocab_size, use_image_embedding, use_dropout):
+def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size):
     model = None
 
     if model_type == 'baseline':
-        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout)
+        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout, output_size = output_size)
     else:
         raise Exception(f'Model Type {model_type} is not supported')
 
@@ -43,6 +43,7 @@ def main():
     parser.add_argument('--optimizer',            type=str,   help='choice of optimizer', choices=['adam', 'adadelta', 'rmsprop'], default='adadelta')
     parser.add_argument('--use_dropout',          type=bool,  help='use dropout', default=False)
     # parser.add_argument('--dropout_prob',         type=float, help='dropout probability', default=0.5)
+    parser.add_argument('--use_sigmoid',          type=bool,  help='use dropout', default=False)
 
     parser.add_argument('--print_stats',          type=bool,  help='flag to print statistics', default=True)
     parser.add_argument('--print_epoch_freq',     type=int,   help='epoch frequency to print stats', default=1)
@@ -57,7 +58,7 @@ def main():
     device       = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     transform    = transforms.Compose([
-                       transforms.CenterCrop(224),
+                       transforms.Resize((224, 224)),
                        transforms.ToTensor(),
                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding)
@@ -65,28 +66,28 @@ def main():
 
     num_gpus     = torch.cuda.device_count()
     batch_size   = args.batch_size
-    # if num_gpus: # Same batch size on each GPU ,i.e, weak scaling
-    #     batch_size *= num_gpus
     train_loader = DataLoader(train_ds, batch_size = batch_size, shuffle = True, num_workers = 2, pin_memory = True)
     val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
 
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
-    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout)
+    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers)
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
+    
     if args.optimizer == 'adam':
         optimizer = Adam(model.parameters(), lr = args.learning_rate)
     elif args.optimizer == 'rmsprop':
         optimizer = RMSprop(model.parameters(), lr = args.learning_rate)
     else:
         optimizer = Adadelta(model.parameters(), lr = args.learning_rate)
-    loss_fn      = nn.CrossEntropyLoss()
+
+    loss_fn      = nn.BCEWithLogitsLoss() if args.use_sigmoid else nn.CrossEntropyLoss()
 
     model, optim, best_accuracy = \
         train_model(model, train_loader, val_loader, loss_fn, optimizer, device,
                     args.model_dir, args.log_dir, args.learning_rate, epochs = args.epochs,
-                    run_name = args.run_name, save_best_state = args.save_best_state,
-                    print_stats = args.print_stats, print_epoch_freq = args.print_epoch_freq,
-                    print_step_freq = args.print_step_freq)
+                    run_name = args.run_name, use_sigmoid = args.use_sigmoid,
+                    save_best_state = args.save_best_state, print_stats = args.print_stats,
+                    print_epoch_freq = args.print_epoch_freq, print_step_freq = args.print_step_freq)
 
     model, vqa_accuracy = get_VQA_accuracy(model, val_loader, device)
 

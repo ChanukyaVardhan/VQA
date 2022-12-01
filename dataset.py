@@ -1,5 +1,6 @@
 from PIL import Image
 from torch.utils.data import Dataset
+from utils import pad_sequences
 
 import collections
 import numpy as np
@@ -7,18 +8,6 @@ import os
 import pickle
 import torch
 import torchvision.transforms as transforms
-
-def pad_sequences(l, max_length):
-    """
-        Pad question with <pad> token (i.e., idx 0) till max_length, if
-        question length exceeds max_length cut it to max_length
-    """
-    padded = np.zeros((max_length,), np.int64)
-    if len(l) > max_length:
-        padded[:] = l[:max_length]
-    else:
-        padded[:len(l)] = l
-    return padded
 
 class VQADataset(Dataset):
     
@@ -66,7 +55,7 @@ class VQADataset(Dataset):
         else: # if use embedding, directly load the embedding vector for VGG/ResNet
             if self.image_features == None:
                 # NEED A WAY TO DISTINGUISH BETWEEN VGG AND RESNET, PROBABLY KEEP THESE IN A FOLDER
-                self.image_features = pickle.load(open(os.path.join(self.data_dir, f'{self.mode}_image_embeddings.pkl'), 'rb'))
+                self.image_features = pickle.load(open(os.path.join(self.data_dir, f'{self.mode}_image_embeddings_new.pkl'), 'rb'))
             img  = self.image_features[image_id]
         
         # convert question words to indexes
@@ -80,4 +69,14 @@ class VQADataset(Dataset):
         all_answers = all_answers.strip().split("^")
         all_answers = np.array([self.label2idx[a if a in self.label2idx else '<unk>'] for a in all_answers])
 
-        return img, question, answer, all_answers
+        # calculate individual answer's frequency and calculate soft score for them
+        ans_freqs   = {}
+        for a in all_answers:
+            ans_freqs[a] = ans_freqs.get(a, 0) + 1
+        # soft_score  = [(a, min(1, freq / 3)) for a, freq in ans_freqs.items() if a != 0] # Ignore unknowns
+        soft_score  = [(a, min(1, freq / 3)) for a, freq in ans_freqs.items()]
+        ans_score   = np.zeros(len(self.label2idx), dtype=np.float32)
+        for a, s in soft_score:
+            ans_score[a] = s
+
+        return img, question, answer, all_answers, ans_score

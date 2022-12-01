@@ -2,7 +2,7 @@ from dataset import VQADataset
 from models.baseline import VQABaseline
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from utils import *
+from utils import plot_lr_explore_adam
 
 import argparse
 import os
