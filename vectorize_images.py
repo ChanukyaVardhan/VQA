@@ -38,13 +38,22 @@ def pil_loader(path):
             return img.convert('RGB')
 
 
-def vectorize(dataset, image_ids, normalize=False, output_size=1024):
+# model_type -> vgg16, resnet152
+def vectorize(dataset, image_ids, normalize=False, output_size=1024, model_type = 'vgg16'):
     img_id_embedding_map = {}
     # Load the pretrained model
-    model = models.vgg16(weights = models.VGG16_Weights.IMAGENET1K_V1)
+    if model_type == 'vgg16':
+        model = models.vgg16(weights = models.VGG16_Weights.IMAGENET1K_V1)
+        model.classifier = nn.Sequential(*list(model.classifier)[:-1])
+    elif model_type == 'resnet152':
+        model = models.resnet152(weights = models.ResNet152_Weights.IMAGENET1K_V2)
+        model = torch.nn.Sequential(*(list(model.children())[:-1]))
+    else:
+        raise Exception(f'Model Type {model_type} is not supported')
+
     for param in model.parameters():
         param.requires_grad = False
-    model.classifier = nn.Sequential(*list(model.classifier)[:-1])
+    
     transform = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
@@ -58,27 +67,30 @@ def vectorize(dataset, image_ids, normalize=False, output_size=1024):
         
         img_tensor = Variable(transform(img).unsqueeze(0))
         i+=1
-        print(i)
+        if i % 1000 == 0:
+            print(i)
         embedding = model(img_tensor)
         embedding = embedding.detach().numpy()[0]
         img_id_embedding_map[img_id] = embedding
     
     print("saving image embeddings file for ",dataset," ... ")
-    with open(os.path.join(data_dir, dataset + "_image_embeddings.pkl"), 'wb') as f:
+    with open(os.path.join(data_dir, dataset + f"_image_embeddings_new_{model_type}.pkl"), 'wb') as f:
         pickle.dump(img_id_embedding_map, f)
 
 def get_ids(dataset):
     f = open(dataset)
     data = f.read().split('\n')
     image_ids = [row.split('\t')[0] for row in data]
-    image_ids = image_ids[:len(image_ids)-1]     
+    image_ids = image_ids[:len(image_ids)-1]
+    image_ids = list(set(image_ids))
+    print(len(image_ids))
     return image_ids
 
 if __name__ == "__main__":
     data_dir         = "images/"
     train_image_id_list = get_ids('train_data.txt')    
     test_image_id_list = get_ids('test_data.txt')    
-    val_image_id_list = get_ids('val_data.txt')    
+    # val_image_id_list = get_ids('val_data.txt')    
     vectorize('train2014', train_image_id_list)
     vectorize('test2015', test_image_id_list)
-    vectorize('val2014', val_image_id_list)
+    # vectorize('val2014', val_image_id_list)

@@ -7,6 +7,7 @@ Utility functions:
 -> plot vqa accuracy
 -> plot all accuracies
 -> plot learning rate vs loss for adam optimizer
+-> predict answers given an image and questions in that image
 """
 from IPython.display import display
 from tensorboard.backend.event_processing import event_accumulator
@@ -233,7 +234,6 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, run_name 
     n          = len(questions)
     transform  = transforms.Compose([
                      transforms.Resize((224, 224)),
-                     # transforms.CenterCrop(224),
                      transforms.ToTensor(),
                      transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
@@ -252,7 +252,8 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, run_name 
     questions  = [pad_sequences(question, max_length) for question in questions]
     questions  = torch.from_numpy(np.array(questions))
 
-    model      = VQABaseline(vocab_size = len(word2idx), use_image_embedding = False, use_dropout = False)
+    # NEED TO FIX THIS PROPERLY, PASS IAMGE_MODEL_TYPE AS WELL
+    model      = VQABaseline(vocab_size = len(word2idx), use_image_embedding = False, use_dropout = False, output_size = top_k)
     model      = nn.DataParallel(model)
     # load the model
     model.load_state_dict(torch.load(os.path.join(model_dir, run_name + '_best.pth'), map_location=torch.device('cpu')))

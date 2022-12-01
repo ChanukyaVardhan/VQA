@@ -6,20 +6,28 @@ import torchvision.models as models
 class ImageEncoder(nn.Module):
 
     def __init__(self, output_size = 1024, image_channel_type = 'normi', use_embedding = True, trainable = False,
-                 dropout_prob = 0.5, use_dropout = False):
+                 dropout_prob = 0.5, use_dropout = False, image_model_type = 'vgg16'):
         super(ImageEncoder, self).__init__()
 
         self.image_channel_type = image_channel_type
         self.use_embedding      = use_embedding
+        self.image_model_type   = image_model_type
         
-        self.model              = models.vgg16(weights = models.VGG16_Weights.IMAGENET1K_V1)
+        if self.image_model_type == 'resnet152':
+            self.model          = models.resnet152(weights = models.ResNet152_Weights.IMAGENET1K_V2)
+            self.model          = nn.Sequential(*(list(self.model.children())[:-1]))
+        else:
+            self.model          = models.vgg16(weights = models.VGG16_Weights.IMAGENET1K_V1)
+            self.model.classifier   = nn.Sequential(*list(self.model.classifier)[:-1])
         if not trainable:
             for param in self.model.parameters():
                 param.requires_grad = False
-        self.model.classifier   = nn.Sequential(*list(self.model.classifier)[:-1])
         
         self.fc    = nn.Sequential()
-        self.fc.append(nn.Linear(4096, output_size))
+        if self.image_model_type == 'resnet152':
+            self.fc.append(nn.Linear(2048, output_size))
+        else:
+            self.fc.append(nn.Linear(4096, output_size))
         if use_dropout:
             self.fc.append(nn.Dropout(dropout_prob))
         self.fc.append(nn.Tanh())
@@ -27,6 +35,9 @@ class ImageEncoder(nn.Module):
     def forward(self, images):
         if not self.use_embedding:
             images      = self.model(images)
+
+        if self.image_model_type == 'resnet152':
+            images      = images.flatten(start_dim = 1)
 
         if self.image_channel_type == 'normi':
             images      = F.normalize(images, p = 2, dim = 1)
@@ -70,8 +81,8 @@ class QuestionEncoder(nn.Module):
 class VQABaseline(nn.Module):
 
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
-                 lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi', use_image_embedding = False,
-                 dropout_prob = 0.5, train_cnn = False, use_dropout = False):
+                 lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi', use_image_embedding = True,
+                 image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = False):
         super(VQABaseline, self).__init__()
         
         self.word_embedding_size = word_embedding_size
@@ -81,7 +92,8 @@ class VQABaseline(nn.Module):
                                                 use_embedding          = use_image_embedding,
                                                 trainable              = train_cnn,
                                                 dropout_prob           = dropout_prob,
-                                                use_dropout            = use_dropout)
+                                                use_dropout            = use_dropout,
+                                                image_model_type       = image_model_type)
         self.question_encoder    = QuestionEncoder(vocab_size          = vocab_size,
                                                    word_embedding_size = word_embedding_size,
                                                    hidden_size         = lstm_hidden_size,

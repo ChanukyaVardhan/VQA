@@ -14,11 +14,11 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
-def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size):
+def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type):
     model = None
 
     if model_type == 'baseline':
-        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout, output_size = output_size)
+        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout, output_size = output_size, image_model_type = image_model_type)
     else:
         raise Exception(f'Model Type {model_type} is not supported')
 
@@ -32,6 +32,7 @@ def main():
     parser.add_argument('--log_dir',              type=str,   help='directory to store log files', default='/scratch/crg9968/logs')
     parser.add_argument('--run_name',             type=str,   help='unique experiment setting name', default='testrun', required=True)
     parser.add_argument('--model',                type=str,   help='VQA model choice', choices=['baseline'], default='baseline', required=True)
+    parser.add_argument('--image_model_type',     type=str,   help='Type of CNN', choices=['vgg16', 'resnet152'], default='vgg16', required=True)
 
     parser.add_argument('--use_image_embedding',  type=bool,  help='use pre computed image embeddings', default=True)
     parser.add_argument('--top_k_answers',        type=int,   help='top k answers', default=1000)
@@ -61,8 +62,8 @@ def main():
                        transforms.Resize((224, 224)),
                        transforms.ToTensor(),
                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding)
-    val_ds       = VQADataset(args.data_dir, mode = 'val', top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding)
+    train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding, image_model_type = args.image_model_type)
+    val_ds       = VQADataset(args.data_dir, mode = 'val', top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding, image_model_type = args.image_model_type)
 
     num_gpus     = torch.cuda.device_count()
     batch_size   = args.batch_size
@@ -70,7 +71,7 @@ def main():
     val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
 
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
-    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers)
+    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers, args.image_model_type)
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
     
     if args.optimizer == 'adam':

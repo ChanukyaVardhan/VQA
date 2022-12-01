@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 
 class VQADataset(Dataset):
     
-    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = True, top_k = 1000, max_length = 14):
+    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = True, image_model_type = 'vgg16', top_k = 1000, max_length = 14):
         """
             - data_dir:            directory of images and preprocessed data
             - transform:           any transformations to be applied to image (if not using embeddings)
@@ -24,6 +24,7 @@ class VQADataset(Dataset):
         self.transform             = transform
         self.mode                  = mode
         self.use_image_embedding   = use_image_embedding
+        self.image_model_type      = image_model_type
         
         self.labelfreq             = pickle.load(open(os.path.join(data_dir, f'answers_freqs.pkl'), 'rb'))
         self.label2idx             = {x[0]: i+1 for i, x in enumerate(collections.Counter(self.labelfreq).most_common(n = top_k - 1))}
@@ -54,8 +55,7 @@ class VQADataset(Dataset):
                 img = self.transform(img)
         else: # if use embedding, directly load the embedding vector for VGG/ResNet
             if self.image_features == None:
-                # NEED A WAY TO DISTINGUISH BETWEEN VGG AND RESNET, PROBABLY KEEP THESE IN A FOLDER
-                self.image_features = pickle.load(open(os.path.join(self.data_dir, f'{self.mode}_image_embeddings_new.pkl'), 'rb'))
+                self.image_features = pickle.load(open(os.path.join(self.data_dir, f'{self.mode}_image_embeddings_new_{self.image_model_type}.pkl'), 'rb'))
             img  = self.image_features[image_id]
         
         # convert question words to indexes
