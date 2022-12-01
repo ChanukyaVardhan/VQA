@@ -117,6 +117,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         start_epoch     = int(start_epoch) + 1
         best_accuracy   = float(best_accuracy)
         model.load_state_dict(torch.load(os.path.join(save_directory, run_name + '_best.pth'))) # load the model
+        optimizer.load_state_dict(torch.load(os.path.join(save_directory, run_name + '_optimizer_best.pth'))) # load the optimizer
         best_weights    = deepcopy(model.state_dict())
     else: # start training from 1st epoch
         best_accuracy   = 0
@@ -158,6 +159,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
             if save_best_state: # save the best model with the epoch number and accuracy
                 print(f"Saving best model with vqa accuracy {vqa_accuracy}!")
                 torch.save(model.state_dict(), os.path.join(save_directory, run_name + '_best.pth'))
+                torch.save(optimizer.state_dict(), os.path.join(save_directory, run_name + '_optimizer_best.pth'))
                 with open(os.path.join(save_directory, best_epoch_file), 'w') as out:
                     out.write(str(epoch) + "\n")
                     out.write(str(best_accuracy) + "\n")
