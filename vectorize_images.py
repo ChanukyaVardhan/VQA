@@ -46,8 +46,7 @@ def vectorize(dataset, image_ids, normalize=False, output_size=1024):
         param.requires_grad = False
     model.classifier = nn.Sequential(*list(model.classifier)[:-1])
     transform = transforms.Compose([
-            #transforms.Resize((224, 224)),
-            transforms.CenterCrop(224),
+            transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
