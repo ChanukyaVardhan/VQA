@@ -50,7 +50,7 @@ def main():
     parser.add_argument('--print_epoch_freq',     type=int,   help='epoch frequency to print stats', default=1)
     parser.add_argument('--print_step_freq',      type=int,   help='step frequency to print stats', default=300)
     parser.add_argument('--save_best_state',      type=bool,  help='flag to save best model', default=True)
-    parser.add_argument('--attention_mechanism',          type=str,   help='method of combining image and text embeddings', default='dot_product')
+    parser.add_argument('--attention_mechanism',          type=str,   help='method of combining image and text embeddings', default='element_wise_product')
 
     parser.add_argument('--random_seed',          type=int,   help='random seed', default=43)
 
