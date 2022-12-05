@@ -14,12 +14,13 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
-def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, word_embedding_size, lstm_state_size):
+def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, attention_mechanism, word_embedding_size, lstm_state_size):
     model = None
 
     if model_type == 'baseline':
         model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout,
-                            output_size = output_size, image_model_type = image_model_type, word_embedding_size = word_embedding_size, lstm_hidden_size = lstm_state_size)
+                            output_size = output_size, image_model_type = image_model_type, attention_mechanism = attention_mechanism,
+                            word_embedding_size = word_embedding_size, lstm_hidden_size = lstm_state_size)
     else:
         raise Exception(f'Model Type {model_type} is not supported')
 
@@ -61,7 +62,8 @@ def main():
     parser.add_argument('--print_epoch_freq',       type=int,   help='epoch frequency to print stats', default=1)
     parser.add_argument('--print_step_freq',        type=int,   help='step frequency to print stats', default=300)
     parser.add_argument('--save_best_state',        type=boolstr,  help='flag to save best model', default=True)
-
+    parser.add_argument('--attention_mechanism',    type=str,   help='method of combining image and text embeddings', default='element_wise_product')
+    
     parser.add_argument('--random_seed',            type=int,   help='random seed', default=43)
 
     args = parser.parse_args()
@@ -89,7 +91,7 @@ def main():
     val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
 
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
-    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers, args.image_model_type, args.word_embedding_size, args.lstm_state_size)
+    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers, args.image_model_type, args.attention_mechanism, args.word_embedding_size, args.lstm_state_size)
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
     
     if args.optimizer == 'adam':

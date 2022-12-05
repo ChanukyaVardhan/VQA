@@ -89,7 +89,7 @@ class VQABaseline(nn.Module):
 
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
                  lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi', use_image_embedding = True,
-                 image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = False):
+                 image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = False, attention_mechanism = 'element_wise_product'):
         super(VQABaseline, self).__init__()
         
         self.word_embedding_size = word_embedding_size
@@ -108,17 +108,21 @@ class VQABaseline(nn.Module):
                                                    num_layers          = num_lstm_layers,
                                                    dropout_prob        = dropout_prob,
                                                    use_dropout         = use_dropout)
-        
+        self.attention_mechanism = attention_mechanism
+        self.attention_fn = {'element_wise_product': lambda x,y:x*y, 'sum': torch.add, 'concat': lambda x,y:torch.cat((x,y),dim=1)}
+        self.embedding_size_post_attention = {'element_wise_product': embedding_size, 'sum': embedding_size, 'concat': 2*embedding_size}
         self.mlp                 = nn.Sequential()
-        self.mlp.append(nn.Linear(embedding_size, 1000))
+        self.mlp.append(nn.Linear(self.embedding_size_post_attention[self.attention_mechanism], 1000))
         self.mlp.append(nn.Dropout(dropout_prob)) # part of the base line model by default
         self.mlp.append(nn.Tanh())
         self.mlp.append(nn.Linear(1000, output_size))
+        
+        
 
     def forward(self, images, questions):
         image_embeddings    = self.image_encoder(images)
         question_embeddings = self.question_encoder(questions)
-        final_embedding     = image_embeddings * question_embeddings
+        final_embedding     = self.attention_fn[self.attention_mechanism](image_embeddings, question_embeddings)
         
         output              = self.mlp(final_embedding)
         
