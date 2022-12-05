@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 
 class VQADataset(Dataset):
     
-    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = True, image_model_type = 'vgg16', top_k = 1000, max_length = 14):
+    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = True, image_model_type = 'vgg16', top_k = 1000, max_length = 14, text_embedding = 'lstm'):
         """
             - data_dir:            directory of images and preprocessed data
             - transform:           any transformations to be applied to image (if not using embeddings)
@@ -24,6 +24,7 @@ class VQADataset(Dataset):
         self.transform             = transform
         self.mode                  = mode
         self.use_image_embedding   = use_image_embedding
+        self.text_embedding        = text_embedding
         self.image_model_type      = image_model_type
         
         self.labelfreq             = pickle.load(open(os.path.join(data_dir, f'answers_freqs.pkl'), 'rb'))
@@ -31,10 +32,19 @@ class VQADataset(Dataset):
         self.label2idx["<unk>"]    = 0
 
         self.word2idx              = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"]
+        self.word_freq              = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word_freq"]
+
         self.max_length            = max_length
         
         self.data_file             = f'{mode}_data.txt'
         self.img_dir               = f'{mode}2014'
+        self.vocab = [[w,self.word_freq[w]] for w in self.word_freq]
+        self.vocab.sort(key=lambda x : x[1], reverse=True)
+        self.vocab=self.vocab[:top_k]
+        self.vocab_len = top_k
+        
+
+
 
         # Read the processed data file
         with open(os.path.join(data_dir, self.data_file), 'r') as f:
@@ -58,9 +68,17 @@ class VQADataset(Dataset):
                 self.image_features = pickle.load(open(os.path.join(self.data_dir, f'{self.mode}_image_embeddings_new_{self.image_model_type}.pkl'), 'rb'))
             img  = self.image_features[image_id]
         
-        # convert question words to indexes
-        question = [self.word2idx[w] if w in self.word2idx else self.word2idx['<unk>'] for w in question.split()]
-        question = pad_sequences(question, self.max_length)
+        if self.text_embedding == 'bow':
+            question_embedding = [0]*self.vocab_len
+            for w in question.split():
+                if w in self.vocab:
+                    question_embedding[self.word2idx[w]] = 1
+            question = torch.from_numpy(np.asarray(question_embedding))
+        else:
+            # convert question words to indexes
+            question = [self.word2idx[w] if w in self.word2idx else self.word2idx['<unk>'] for w in question.split()]
+            question = pad_sequences(question, self.max_length)
+            
 
         # convert answer words to indexes
         answer   = self.label2idx[answer if answer in self.label2idx else '<unk>']
