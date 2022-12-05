@@ -6,7 +6,7 @@ import os
 import time
 import torch
 
-def train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr, use_sigmoid = False, print_step_freq = 50, print_stats = True, step_writer = None):
+def train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr, use_sigmoid = False, use_sftmx_multiple_ans = False, print_step_freq = 50, print_stats = True, step_writer = None):
     """
         train the model for an epoch with data from train_loader on device
     """
@@ -24,7 +24,12 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, init
         optimizer.zero_grad()
 
         pred_scores      = model(images, questions)
-        l                = loss_fn(pred_scores, ans_score) * ans_score.size(1) if use_sigmoid else loss_fn(pred_scores, answers)
+        if use_sigmoid:
+            l            = loss_fn(pred_scores, ans_score) * ans_score.size(1)
+        elif use_sftmx_multiple_ans:
+            l            = -loss_fn(pred_scores) * ans_score.sum(dim = 1).mean()
+        else:
+            l            = loss_fn(pred_scores, answers)
         train_loss      += l.item() * images.size(0)
 
         _, pred_answers  = torch.max(pred_scores, 1)
@@ -50,7 +55,7 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, init
 
     return model, optimizer, train_loss, train_accuracy
 
-def val(model, val_loader, loss_fn, device, use_sigmoid = False):
+def val(model, val_loader, loss_fn, device, use_sigmoid = False, use_sftmx_multiple_ans = False):
     """
         calculate the validation loss and validation accuracy and also VQA accuracy metric
     """
@@ -67,7 +72,12 @@ def val(model, val_loader, loss_fn, device, use_sigmoid = False):
         ans_score       = ans_score.to(device)
 
         pred_scores     = model(images, questions)
-        l               = loss_fn(pred_scores, ans_score) * ans_score.size(1) if use_sigmoid else loss_fn(pred_scores, answers)
+        if use_sigmoid:
+            l            = loss_fn(pred_scores, ans_score) * ans_score.size(1)
+        elif use_sftmx_multiple_ans:
+            l            = -loss_fn(pred_scores) * ans_score.sum(dim = 1).mean()
+        else:
+            l            = loss_fn(pred_scores, answers)
         val_loss       += l.item() * images.size(0)
 
         _, pred_answers = torch.max(pred_scores, 1)
@@ -84,8 +94,8 @@ def val(model, val_loader, loss_fn, device, use_sigmoid = False):
     return model, val_loss, val_accuracy, vqa_accuracy
 
 def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, save_directory, log_directory, initial_lr,
-                epochs = 50, run_name = 'testrun', use_sigmoid = False, save_best_state = True, save_logs = True,
-                print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
+                epochs = 50, run_name = 'testrun', use_sigmoid = False, use_sftmx_multiple_ans = False,
+                save_best_state = True, save_logs = True, print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
     """
         - model:               model to train loaded on the device
         - train_loader:        data loader for training data
