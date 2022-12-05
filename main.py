@@ -51,6 +51,7 @@ def main():
     parser.add_argument('--print_step_freq',      type=int,   help='step frequency to print stats', default=300)
     parser.add_argument('--save_best_state',      type=bool,  help='flag to save best model', default=True)
     parser.add_argument('--attention_mechanism',          type=str,   help='method of combining image and text embeddings', default='element_wise_product')
+    parser.add_argument('--text_embedding',          type=str,   help='method of generating question embeddings', default='lstm')
 
     parser.add_argument('--random_seed',          type=int,   help='random seed', default=43)
 
@@ -63,9 +64,9 @@ def main():
                        transforms.Resize((224, 224)),
                        transforms.ToTensor(),
                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding, image_model_type = args.image_model_type)
+    train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding, image_model_type = args.image_model_type, text_embedding=args.text_embedding)
   
-    val_ds       = VQADataset(args.data_dir, mode = 'val', top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding, image_model_type = args.image_model_type)
+    val_ds       = VQADataset(args.data_dir, mode = 'val', top_k = args.top_k_answers, max_length = args.max_length, transform = transform, use_image_embedding = args.use_image_embedding, image_model_type = args.image_model_type, text_embedding=args.text_embedding)
 
     num_gpus     = torch.cuda.device_count()
     batch_size   = args.batch_size
