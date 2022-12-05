@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 
 class VQADataset(Dataset):
     
-    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = True, image_model_type = 'vgg16', top_k = 1000, max_length = 14):
+    def __init__(self, data_dir, transform = None, mode = 'train', use_image_embedding = True, image_model_type = 'vgg16', top_k = 1000, max_length = 14, ignore_unknowns = True, use_softscore = True):
         """
             - data_dir:            directory of images and preprocessed data
             - transform:           any transformations to be applied to image (if not using embeddings)
@@ -32,6 +32,8 @@ class VQADataset(Dataset):
 
         self.word2idx              = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"]
         self.max_length            = max_length
+        self.ignore_unknowns       = ignore_unknowns
+        self.use_softscore         = use_softscore
         
         self.data_file             = f'{mode}_data.txt'
         self.img_dir               = f'{mode}2014'
@@ -73,10 +75,18 @@ class VQADataset(Dataset):
         ans_freqs   = {}
         for a in all_answers:
             ans_freqs[a] = ans_freqs.get(a, 0) + 1
-        # soft_score  = [(a, min(1, freq / 3)) for a, freq in ans_freqs.items() if a != 0] # Ignore unknowns
-        soft_score  = [(a, min(1, freq / 3)) for a, freq in ans_freqs.items()]
+        if self.ignore_unknowns:  # Ignore unknowns
+            if self.use_softscore:
+                score  = [(a, min(1, freq / 3)) for a, freq in ans_freqs.items() if a != 0]
+            else:
+                score = [(a, freq / 10) for a, freq in ans_freqs.items() if a != 0]
+        else:
+            if self.use_softscore:
+                score  = [(a, min(1, freq / 3)) for a, freq in ans_freqs.items()]
+            else:
+                score = [(a, freq / 10) for a, freq in ans_freqs.items()]
         ans_score   = np.zeros(len(self.label2idx), dtype=np.float32)
-        for a, s in soft_score:
+        for a, s in score:
             ans_score[a] = s
 
         return img, question, answer, all_answers, ans_score

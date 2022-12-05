@@ -68,14 +68,21 @@ class QuestionEncoder(nn.Module):
         
     def forward(self, questions):
         x                  = self.word_embeddings(questions)
+        # N * seq_length * 300
         x                  = x.transpose(0, 1)
+        # seq_length * N * 300
         _, (hidden, cell)  = self.lstm(x)
+        # (1 * N * 1024, 1 * N * 1024)
         x                  = torch.cat((hidden, cell), 2)
+        # (1 * N * 2048)
         x                  = x.transpose(0, 1)
+        # (N * 1 * 2048)
         x                  = x.reshape(x.size()[0], -1)
+        # (N * 2048)
         x                  = nn.Tanh()(x)
         question_embedding = self.fc(x)
-        
+        # (N * 1024)
+
         return question_embedding
 
 class VQABaseline(nn.Module):
