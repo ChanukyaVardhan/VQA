@@ -27,7 +27,7 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, init
         if use_sigmoid:
             l            = loss_fn(pred_scores, ans_score) * ans_score.size(1)
         elif use_sftmx_multiple_ans:
-            l            = -loss_fn(pred_scores) * ans_score.sum(dim = 1).mean()
+            l            = (-loss_fn(pred_scores) * ans_score).sum(dim = 1).mean()
         else:
             l            = loss_fn(pred_scores, answers)
         train_loss      += l.item() * images.size(0)
@@ -75,7 +75,7 @@ def val(model, val_loader, loss_fn, device, use_sigmoid = False, use_sftmx_multi
         if use_sigmoid:
             l            = loss_fn(pred_scores, ans_score) * ans_score.size(1)
         elif use_sftmx_multiple_ans:
-            l            = -loss_fn(pred_scores) * ans_score.sum(dim = 1).mean()
+            l            = (-loss_fn(pred_scores) * ans_score).sum(dim = 1).mean()
         else:
             l            = loss_fn(pred_scores, answers)
         val_loss       += l.item() * images.size(0)
@@ -147,13 +147,13 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
 
         train_start_time  = time.time()
         model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr,
-                                                             use_sigmoid = use_sigmoid,
+                                                             use_sigmoid = use_sigmoid, use_sftmx_multiple_ans = use_sftmx_multiple_ans,
                                                              print_step_freq = print_step_freq, print_stats = print_stats,
                                                              step_writer = step_writer if save_logs else None)
         train_time        = time.time() - train_start_time
 
         val_start_time    = time.time()
-        model, val_loss, val_accuracy, vqa_accuracy = val(model, val_loader, loss_fn, device, use_sigmoid = use_sigmoid)
+        model, val_loss, val_accuracy, vqa_accuracy = val(model, val_loader, loss_fn, device, use_sigmoid = use_sigmoid, use_sftmx_multiple_ans = use_sftmx_multiple_ans)
         val_time          = time.time() - val_start_time
 
         # print statistics
