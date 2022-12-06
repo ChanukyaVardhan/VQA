@@ -104,7 +104,7 @@ def main():
     if args.use_sigmoid:
         loss_fn   = nn.BCEWithLogitsLoss()
     elif args.use_sftmx_multiple_ans:
-        loss_fn   = nn.LogSoftmax()
+        loss_fn   = nn.LogSoftmax(dim = 1)
     else:
         loss_fn   =  nn.CrossEntropyLoss()
 
@@ -123,4 +123,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-# python3 main.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --epochs 4
+# python3 main.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --epochs 1 --use_dropout True --use_sftmx_multiple_ans True --use_softscore False --word_embedding_size 500
