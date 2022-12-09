@@ -6,7 +6,7 @@ import os
 import time
 import torch
 
-def train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr, use_sigmoid = False, use_sftmx_multiple_ans = False, print_step_freq = 50, print_stats = True, step_writer = None):
+def train(model, train_loader, loss_fn, optimizer, device, completed_steps, use_sigmoid = False, use_sftmx_multiple_ans = False, print_step_freq = 50, print_stats = True, step_writer = None):
     """
         train the model for an epoch with data from train_loader on device
     """
@@ -83,6 +83,7 @@ def val(model, val_loader, loss_fn, device, use_sigmoid = False, use_sftmx_multi
         _, pred_answers = torch.max(pred_scores, 1)
         val_accuracy   += (pred_answers == answers).sum().item()
         all_answers[all_answers == 0] = 30000 # so we don't match answers that are not in vocabulary
+        # compute vqa accuracy as well
         vqa_accuracy   += (np.sum(pred_answers.cpu().numpy().reshape(-1, 1).repeat(10, axis = 1) == all_answers.numpy(), axis = 1) / 3.0).clip(max = 1.0).sum()
         
         num_samples    += images.size(0)
@@ -93,26 +94,27 @@ def val(model, val_loader, loss_fn, device, use_sigmoid = False, use_sftmx_multi
 
     return model, val_loss, val_accuracy, vqa_accuracy
 
-def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, save_directory, log_directory, initial_lr,
+def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, save_directory, log_directory,
                 epochs = 50, run_name = 'testrun', use_sigmoid = False, use_sftmx_multiple_ans = False,
                 save_best_state = True, save_logs = True, print_epoch_freq = 1, print_step_freq = 50, print_stats = True):
     """
-        - model:               model to train loaded on the device
-        - train_loader:        data loader for training data
-        - val_loader:          data loader for validation data
-        - loss_fn:             loss function
-        - optimizer:           optimizer
-        - device:              device to run training on
-        - save_directory:      directory to save the best model checkpoints (indexes on run_name)
-        - log_directory:       directory to log training statistics at epoch and step level (indexes on run_name)
-        - initial_lr:          initial learning rate, will be decayed based on number of completed iterations for adam and rmsprop
-        - epochs:              number of epochs to train (this is the final_epoch number, training starts from existing best epoch)
-        - run_name:            unique identifier for the experiment, all the checkpoints and logs are saved using this run_name
-        - save_best_state:     saves the best performing model on validation set accuracy (this can used to resume training as well)
-        - save_logs:           save logs to log_directory
-        - print_epoch_freq:    print training statistics after these many epochs
-        - print_step_freq:     print training statistics after these many steps
-        - print_stats:         print statistics
+        - model:                  model to train loaded on the device
+        - train_loader:           data loader for training data
+        - val_loader:             data loader for validation data
+        - loss_fn:                loss function
+        - optimizer:              optimizer
+        - device:                 device to run training on
+        - save_directory:         directory to save the best model checkpoints (indexes on run_name)
+        - log_directory:          directory to log training statistics at epoch and step level (indexes on run_name)
+        - epochs:                 number of epochs to train (this is the final_epoch number, training starts from existing best epoch)
+        - run_name:               unique identifier for the experiment, all the checkpoints and logs are saved using this run_name
+        - use_sigmoid:            uses binary cross entropy loss on a sigmoid activation
+        - use_sftmx_multiple_ans: uses soft max cross entropy with multiple possible answers as loss
+        - save_best_state:        saves the best performing model on validation set accuracy (this can used to resume training as well)
+        - save_logs:              save logs to log_directory
+        - print_epoch_freq:       print training statistics after these many epochs
+        - print_step_freq:        print training statistics after these many steps
+        - print_stats:            print statistics
     """
     start_time          = time.time()
     train_length        = len(train_loader.dataset)
@@ -134,24 +136,25 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         start_epoch     = 1
         best_weights    = None
 
-    # update learning rate to the epoch
-    completed_steps     = (start_epoch - 1) * train_steps
-
     print(f"Starting training from epoch - {start_epoch}!")
 
+    # Initialize writer objects
     if save_logs:
         epoch_writer      = SummaryWriter(os.path.join(log_directory, run_name)) # summary writer for epoch level stats
         step_writer       = SummaryWriter(os.path.join(log_directory, run_name + "_step")) # summary writer for step level stats
     for epoch in range(start_epoch, epochs + 1):
+        # completed_steps used to print statistics at step level, start with the appropriate number
         completed_steps   = (epoch - 1) * train_steps
 
+        # train an epoch
         train_start_time  = time.time()
-        model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps, initial_lr,
+        model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps,
                                                              use_sigmoid = use_sigmoid, use_sftmx_multiple_ans = use_sftmx_multiple_ans,
                                                              print_step_freq = print_step_freq, print_stats = print_stats,
                                                              step_writer = step_writer if save_logs else None)
         train_time        = time.time() - train_start_time
 
+        # validate an epoch
         val_start_time    = time.time()
         model, val_loss, val_accuracy, vqa_accuracy = val(model, val_loader, loss_fn, device, use_sigmoid = use_sigmoid, use_sftmx_multiple_ans = use_sftmx_multiple_ans)
         val_time          = time.time() - val_start_time
@@ -162,7 +165,8 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
                   f'Val Loss - {val_loss:.4f}, Val Accuracy - {val_accuracy:.2f}, VQA Accuracy - {vqa_accuracy:.2f}, '
                   f'Train Time - {train_time:.2f} secs, Val Time - {val_time:.2f} secs')
 
-        if vqa_accuracy > best_accuracy: # found a new best model
+        # found a new best model
+        if vqa_accuracy > best_accuracy:
             best_accuracy = vqa_accuracy
             best_weights  = deepcopy(model.state_dict())
 
@@ -174,7 +178,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
                     out.write(str(epoch) + "\n")
                     out.write(str(best_accuracy) + "\n")
 
-        # log train loss, train accuracy, train time, val loss, val accuracy, val time
+        # log train loss, train accuracy, train time, val loss, val accuracy, vqa accuracy, val time
         if save_logs:
             epoch_writer.add_scalar('Train_Loss', train_loss, epoch)
             epoch_writer.add_scalar('Train_Accuracy', train_accuracy, epoch)
@@ -222,5 +226,3 @@ def get_VQA_accuracy(model, val_loader, device):
     print(f'VQA Accuracy for the best model - {vqa_accuracy}')
 
     return model, vqa_accuracy
-
-# WRITE A FUNCTION THAT TAKES AN IMAGE AND A QUESTION AND RETURNS THE ANSWER
