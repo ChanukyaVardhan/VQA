@@ -14,6 +14,7 @@ import numpy as np
 import pickle
 from torch.autograd import Variable
 import time
+import argparse
 
 def load_folder(folder, suffix):
     imgs = []
@@ -39,7 +40,7 @@ def pil_loader(path):
 
 
 # model_type -> vgg16, resnet152
-def vectorize(dataset, image_ids, normalize=False, output_size=1024, model_type = 'vgg16'):
+def vectorize(dataset, image_ids, output_size=1024, model_type = 'vgg16'):
     img_id_embedding_map = {}
     # Load the pretrained model
     if model_type == 'vgg16':
@@ -62,7 +63,7 @@ def vectorize(dataset, image_ids, normalize=False, output_size=1024, model_type 
                 std=[0.229, 0.224, 0.225])])
     i = 0
     for img_id in image_ids:
-        image_path = data_dir + dataset + '/COCO_' + dataset + "_" + "0"*(12-len(img_id)) + img_id + '.jpg'
+        image_path = data_dir + "/images/" + dataset + '/COCO_' + dataset + "_" + "0"*(12-len(img_id)) + img_id + '.jpg'
         img = pil_loader(image_path)
         
         img_tensor = Variable(transform(img).unsqueeze(0))
@@ -86,11 +87,16 @@ def get_ids(dataset):
     print(len(image_ids))
     return image_ids
 
+def main():
+    parser = argparse.ArgumentParser(description='Calculate Image embeddings for the CNN model')
+    parser.add_argument('--data_dir',   type=str, help='directory to store the embeddings', default='/scratch/crg9968/datasets')
+    parser.add_argument('--model_type', type=str, help='Type of CNN for the Image Encoder', choices=['vgg16', 'resnet152'], default='vgg16')
+    args = parser.parse_args()
+
+    train_image_id_list = get_ids('train_data.txt')
+    val_image_id_list = get_ids('val_data.txt')
+    vectorize('train2014', train_image_id_list, model_type = model_type)
+    vectorize('val2014', val_image_id_list, model_type = model_type)
+
 if __name__ == "__main__":
-    data_dir         = "images/"
-    train_image_id_list = get_ids('train_data.txt')    
-    test_image_id_list = get_ids('test_data.txt')    
-    # val_image_id_list = get_ids('val_data.txt')    
-    vectorize('train2014', train_image_id_list)
-    vectorize('test2015', test_image_id_list)
-    # vectorize('val2014', val_image_id_list)
+    main()

@@ -34,37 +34,36 @@ def boolstr(s):
 def main():
     parser = argparse.ArgumentParser(description='VQA')
 
-    parser.add_argument('--data_dir',               type=str,   help='directory of preprocesses data', default='/scratch/crg9968/datasets')
-    parser.add_argument('--model_dir',              type=str,   help='directory to store model checkpoints', default='/scratch/crg9968/checkpoints')
-    parser.add_argument('--log_dir',                type=str,   help='directory to store log files', default='/scratch/crg9968/logs')
-    parser.add_argument('--run_name',               type=str,   help='unique experiment setting name', default='testrun', required=True)
-    parser.add_argument('--model',                  type=str,   help='VQA model choice', choices=['baseline'], default='baseline', required=True)
-    parser.add_argument('--image_model_type',       type=str,   help='Type of CNN', choices=['vgg16', 'resnet152'], default='vgg16')
+    parser.add_argument('--data_dir',               type=str,       help='directory of the preprocesses data', default='/scratch/crg9968/datasets')
+    parser.add_argument('--model_dir',              type=str,       help='directory to store model checkpoints (saved as run_name.pth)', default='/scratch/crg9968/checkpoints')
+    parser.add_argument('--log_dir',                type=str,       help='directory to store log files (used to generate run_name.csv files for training results)', default='/scratch/crg9968/logs')
+    parser.add_argument('--run_name',               type=str,       help='unique experiment name (used as prefix for all data saved on a run)', default='testrun', required=True)
+    parser.add_argument('--model',                  type=str,       help='VQA model choice', choices=['baseline'], default='baseline', required=True)
+    parser.add_argument('--image_model_type',       type=str,       help='Type of CNN for the Image Encoder', choices=['vgg16', 'resnet152'], default='vgg16')
 
-    parser.add_argument('--use_image_embedding',    type=boolstr,  help='use pre computed image embeddings', default=True)
-    parser.add_argument('--top_k_answers',          type=int,   help='top k answers', default=1000)
-    parser.add_argument('--max_length',             type=int,   help='max sequence length of questions', default=14) # covers 99.7% of questions
-    parser.add_argument('--word_embedding_size',    type=int,   help='Word embedding size', default=300)
-    parser.add_argument('--lstm_state_size',        type=int,   help='LSTM hidden state size', default=512)
+    parser.add_argument('--use_image_embedding',    type=boolstr,   help='Use precomputed embeddings directly', default=True)
+    parser.add_argument('--top_k_answers',          type=int,       help='Top K answers used to train the model (output classifier size)', default=1000)
+    parser.add_argument('--max_length',             type=int,       help='max sequence length of questions', default=14) # covers 99.7% of questions
+    parser.add_argument('--word_embedding_size',    type=int,       help='Word embedding size for the embedding layer', default=300)
+    parser.add_argument('--lstm_state_size',        type=int,       help='LSTM hidden state size', default=512)
 
-    parser.add_argument('--batch_size',             type=int,   help='batch size', default=512)
-    parser.add_argument('--epochs',                 type=int,   help='number of epochs i.e., final epoch number', default=50)
-    parser.add_argument('--learning_rate',          type=float, help='initial learning rate', default=1.0)
-    parser.add_argument('--optimizer',              type=str,   help='choice of optimizer', choices=['adam', 'adadelta', 'rmsprop'], default='adadelta')
-    parser.add_argument('--use_dropout',            type=boolstr,  help='use dropout', default=False)
-    # parser.add_argument('--dropout_prob',         type=float, help='dropout probability', default=0.5)
-    parser.add_argument('--use_sigmoid',            type=boolstr,  help='use sigmoid activation to compute binary cross entropy loss', default=False)
-    parser.add_argument('--use_sftmx_multiple_ans', type=boolstr,  help='use softmax activation with multiple possible answers to compute the loss', default=False)
-    parser.add_argument('--ignore_unknowns',        type=boolstr,  help='Ignore unknowns from the true labels in case of use_sigmoid', default=True)
-    parser.add_argument('--use_softscore',          type=boolstr,  help='use soft score for the ansewrs, only applicable for sigmoid or softmax with multiple answers case', default=True)
+    parser.add_argument('--batch_size',             type=int,       help='batch size', default=512)
+    parser.add_argument('--epochs',                 type=int,       help='number of epochs i.e., final epoch number', default=50)
+    parser.add_argument('--learning_rate',          type=float,     help='initial learning rate', default=1.0)
+    parser.add_argument('--optimizer',              type=str,       help='choice of optimizer', choices=['adam', 'adadelta'], default='adadelta')
+    parser.add_argument('--use_dropout',            type=boolstr,   help='use dropout', default=True)
+    parser.add_argument('--use_sigmoid',            type=boolstr,   help='use sigmoid activation to compute binary cross entropy loss', default=False)
+    parser.add_argument('--use_sftmx_multiple_ans', type=boolstr,   help='use softmax activation with multiple possible answers to compute the loss', default=False)
+    parser.add_argument('--ignore_unknowns',        type=boolstr,   help='Ignore unknowns from the true labels in case of use_sigmoid or use_sftmx_multiple_ans', default=True)
+    parser.add_argument('--use_softscore',          type=boolstr,   help='use soft score for the answers, only applicable for sigmoid or softmax with multiple answers case', default=True)
 
-    parser.add_argument('--print_stats',            type=boolstr,  help='flag to print statistics', default=True)
-    parser.add_argument('--print_epoch_freq',       type=int,   help='epoch frequency to print stats', default=1)
-    parser.add_argument('--print_step_freq',        type=int,   help='step frequency to print stats', default=300)
-    parser.add_argument('--save_best_state',        type=boolstr,  help='flag to save best model', default=True)
-    parser.add_argument('--attention_mechanism',    type=str,   help='method of combining image and text embeddings', default='element_wise_product')
+    parser.add_argument('--print_stats',            type=boolstr,   help='flag to print statistics i.e., the verbose flag', default=True)
+    parser.add_argument('--print_epoch_freq',       type=int,       help='epoch frequency to print stats at', default=1)
+    parser.add_argument('--print_step_freq',        type=int,       help='step frequency to print stats at', default=300)
+    parser.add_argument('--save_best_state',        type=boolstr,   help='flag to save best model, used to resume training from the epoch of the best state', default=True)
+    parser.add_argument('--attention_mechanism',    type=str,       help='method of combining image and text embeddings', choices=['element_wise_product', 'sum', 'concat'], default='element_wise_product')
     
-    parser.add_argument('--random_seed',            type=int,   help='random seed', default=43)
+    parser.add_argument('--random_seed',            type=int,       help='random seed for the experiment', default=43)
 
     args = parser.parse_args()
 
@@ -96,8 +95,6 @@ def main():
     
     if args.optimizer == 'adam':
         optimizer = Adam(model.parameters(), lr = args.learning_rate)
-    elif args.optimizer == 'rmsprop':
-        optimizer = RMSprop(model.parameters(), lr = args.learning_rate)
     else:
         optimizer = Adadelta(model.parameters(), lr = args.learning_rate)
 
@@ -123,4 +120,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-# python3 main.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --epochs 1 --use_dropout True --use_sftmx_multiple_ans True --use_softscore False --word_embedding_size 500
+# python main.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --epochs 1 --use_dropout True --use_sftmx_multiple_ans True --use_softscore False --word_embedding_size 500
