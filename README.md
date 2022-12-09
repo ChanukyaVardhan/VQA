@@ -37,7 +37,7 @@ Following are the important packages requried
 - torchvision=0.13.1
 
 #### 1. Download Datasets
-For training and evaluating the models, we choose the more recent version of VQA dataset - **VQA v2** on the balanced real images. This dataset consists of 82,783 training images with 443,757 questions, 40,504 validation images with 214,354 questions. Each of these questions have 10 answers which were collected by human subjects. We are evaluating the performance of our models on the validation set.
+For training and evaluating the models, we choose the more recent version of VQA dataset - **VQA v2** on the balanced real images. This dataset consists of 82,783 training images with 443,757 questions, 40,504 validation images with 214,354 questions. Each of these questions have 10 answers which were collected by human subjects. The test dataset has 81,434 images with 447,793 questions. We are evaluating the performance of our models on the validation set.
 
 Run the `download_datasets.sh` file to download the datasets from the official site and extract them. We need to set the appropriate directory where we want the data to be downloaded in the script by modifying `DATASETS_DIR` variable (`data_dir` flag going forward will need to point to this directory).
 ```bash
@@ -53,17 +53,19 @@ The data directory structure after running the above command should look like th
     ├── images                                              # Actual images
     │    └── train2014                                      # 82,783 training images
     │    └── val2014                                        # 40,504 validation images
+    │    └── test2015                                       # 81,434 testing images
     └── questions                                           # Openended questions
          └── v2_OpenEnded_mscoco_train2014_questions.json   # Training questions
          └── v2_OpenEnded_mscoco_val2014_questions.json     # Validation questions
-    
+         └── v2_OpenEnded_mscoco_test2015_questions.json
+         └── v2_OpenEnded_mscoco_test-dev2015_questions.json
 
 #### 2. Preprocess Data
 We first preprocess the data we have into a simple format to train the model easily. Run the following command by passing the `data_dir` argument with the directory where we downloaded the dataset to.
 ```
 python preprocess.py --data_dir ../Dataset
 ```
-This script processes all the questions, annotations and saves each question example as a row in `image_id`\t`question`\t`answer`\t`answers` format in the processed `train_data.txt` and `test_data.txt` files. `image_id` is the unique id for each image in the respective train and val sets. The question and answer are space separated, answers is ^ separated for convenience. The answers are the 10 possible answers, and answer is the most frequent among them. This also saves the vocabulary of words in training questions mapping word to index and also index to the word in `questions_vocab.pkl` file, and also the frequencies of answers (that will be used later to construct the vocabulary for answers) in `answers_freq.pkl` file.
+This script processes all the questions, annotations and saves each question example as a row in `image_id`\t`question`\t`answer`\t`answers` format in the processed `train_data.txt` and `val_data.txt` files. `image_id` is the unique id for each image in the respective train and val sets. The question and answer are space separated, answers is ^ separated for convenience. The answers are the 10 possible answers, and answer is the most frequent among them. This also saves the vocabulary of words in training questions mapping word to index and also index to the word in `questions_vocab.pkl` file, and also the frequencies of answers (that will be used later to construct the vocabulary for answers) in `answers_freq.pkl` file.
 
 #### 3. Pre Compute Image Embeddings
 ```
@@ -132,14 +134,22 @@ options:
 ```
 An example command to run the VQA baseline model - `python main.py --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --run_name run_43 --model baseline --use_image_embedding True --top_k_answers 3000 --batch_size 384 --epochs 100 --optimizer adadelta --use_dropout True --use_sigmoid True --save_best_state True --random_seed 43`
 
+#### 5. Visualizing Training Results
+Training statistics for an experiment are all saved using the run_name passed for it. Log files are save as tensorboard events in the log directory passed during training, and the parsed csv files of these logs are saved in the same directory. `utils.py` has multiple functions that can help visualize these csv files.
+
+To view the VQA accuracies for multiple runs together we can use `python utils.py 'from utils import *; plot_all_accuracies(log_dir, ["run_13, run_23, run_43"])'` with the appropriate log directory.
+
+#### 6. Predicting Answers
+To predict answers for an image in the dataset, we can use the script `answer_questions.py` by passing the arguments that were used during training of that experiment. `python answer_questions.py --data_dir ../Dataset --model_dir ../checkpoints --run_name run_43 --top_k_answers 3000 --use_dropout True --image_loc val --image_id 264957`. In case of testing on a custom image and questions, we can use the function `answer_these_questions()` that takes in image path and list of questions along with the other parameters that were used for the experiment during training.
+
 ## Results
 
 ## Contributions
 
 - Chanukya Vardhan
-    + 
+    - 
 - Abhishek Narayanan
-    + 
+    - 
 
 ## References
 1. [VQA: Visual Question Answering.](https://openaccess.thecvf.com/content_iccv_2015/papers/Antol_VQA_Visual_Question_ICCV_2015_paper.pdf)

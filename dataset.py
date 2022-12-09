@@ -16,9 +16,11 @@ class VQADataset(Dataset):
             - data_dir:            directory of images and preprocessed data
             - transform:           any transformations to be applied to image (if not using embeddings)
             - mode:                train/val
-            - use_image_embedding: use image embeddings directly that are stored
+            - use_image_embedding: use image embeddings directly that are stored using vectorize_images.py
             - top_k:               select top_k frequent answers for training
             - max_length:          max number of words in the question to use while training
+            - ignore_unknowns:     while using multiple answers, don't include the unknowns as true answers
+            - use_softscore:       for multiple answers, when set to True, uses weights based on the vqa metric of min(1, freq/3), else uses (freq/10)
         """
         self.data_dir              = data_dir
         self.transform             = transform
@@ -48,6 +50,9 @@ class VQADataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
+        """
+            returns image (or image embeddings), question (in vector form), answer, all_answers (10 answers), ans_score (a weight for each correct answer, used when allowed to train on multiple answers)
+        """
         image_id, question, answer, all_answers = self.data[idx].strip().split('\t')
         
         if not self.use_image_embedding: # If not use embedding, load the image and apply transform
@@ -71,7 +76,7 @@ class VQADataset(Dataset):
         all_answers = all_answers.strip().split("^")
         all_answers = np.array([self.label2idx[a if a in self.label2idx else '<unk>'] for a in all_answers])
 
-        # calculate individual answer's frequency and calculate soft score for them
+        # calculate individual answer's frequency and calculate score for them
         ans_freqs   = {}
         for a in all_answers:
             ans_freqs[a] = ans_freqs.get(a, 0) + 1

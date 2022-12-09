@@ -6,17 +6,22 @@ Utility functions:
 -> plot training and validation statistics
 -> plot vqa accuracy
 -> plot all accuracies
--> plot learning rate vs loss for adam optimizer
 -> predict answers given an image and questions in that image
 """
-from IPython.display import display
+from models.baseline import VQABaseline
+from PIL import Image
 from tensorboard.backend.event_processing import event_accumulator
 
 import collections
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pickle
 import pandas as pd
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
 
 def pad_sequences(l, max_length):
     """
@@ -175,20 +180,20 @@ def plot_all_accuracies(log_directory, run_names):
     plt.legend()
     plt.show()
 
-def plot_lr_explore_adam(log_directory, run_name = 'lr_adam'):
+def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, attention_mechanism, word_embedding_size, lstm_state_size):
     """
-        plots the loss vs learning rate for the first 5 epochs of training to explore adam optimizer
+        Instantiates the pytorch model given the appropriate parameters.
     """
-    df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
-    plt.plot(df['lr'].values, df['loss'].values)
-    plt.xscale('log')
-    plt.xlabel("Learning Rate (Log Scale)")
-    plt.ylabel("Loss")
-    plt.title("Training Loss vs Learning Rate")
-    plt.ylim([0, 9])
-    # plt.xlim([1e-7, 1e-2])
-    plt.show()
+    model = None
 
+    if model_type == 'baseline':
+        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout,
+                            output_size = output_size, image_model_type = image_model_type, attention_mechanism = attention_mechanism,
+                            word_embedding_size = word_embedding_size, lstm_hidden_size = lstm_state_size)
+    else:
+        raise Exception(f'Model Type {model_type} is not supported')
+
+    return model
 
 def get_image_path(data_dir, image_id, mode = 'test'):
     """
@@ -210,8 +215,7 @@ def get_image_to_questions(data_dir, mode = 'test'):
         ques_file = f"v2_OpenEnded_mscoco_{mode}2014_questions.json"
     else:
         ques_file = f"v2_OpenEnded_mscoco_{mode}2015_questions.json"
-    question_file = os.path.join(data_dir, 'questions', ques_file)
-    questions     = json.load(open(question_file, 'r'))['questions']
+    questions     = json.load(open(os.path.join(data_dir, 'questions', ques_file), 'r'))['questions']
     image_ids     = set(q["image_id"] for q in questions)
     imageToQ      = {image_id: [] for image_id in image_ids}
     for q in questions:
@@ -219,16 +223,24 @@ def get_image_to_questions(data_dir, mode = 'test'):
 
     return imageToQ
 
-def answer_these_questions(data_dir, model_dir, image_path, questions, run_name = 'baseline_512', top_k = 1000, max_length = 14):
+def answer_these_questions(data_dir, model_dir, image_path, questions, model_type = 'baseline', run_name = 'baseline_512',
+                           top_k = 1000, max_length = 14, image_model_type = 'vgg16', word_embedding_size = 300, use_dropout = True,
+                           lstm_hidden_size = 512, attention_mechanism = 'element_wise_product'):
     """
         prints the predicted answers given an image and the questions for that image.
         - data_dir:            directory of images and preprocessed data
-        - mode_dir:            directory where the saved models are present
+        - model_dir:           directory where the saved models are present
         - image_path:          image path
         - questions:           questions for the image
-        - run_name:            which esperiment to use
+        - model_type:          VQA model choice
+        - run_name:            which experiment to use
         - top_k:               select top_k frequent answers that was used during training for this run_name
         - max_length:          max number of words in the question that was used during training for this run_name
+        - image_model_type:    type of CNN for the Image Encoder used for the experiment
+        - word_embedding_size: word embedding size used during training
+        - lstm_hidde_size:     lstm hidden state size used during training
+        - attention_mechanism: attention mechanism used during training
+
     """
     n          = len(questions)
     transform  = transforms.Compose([
@@ -251,13 +263,13 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, run_name 
     questions  = [pad_sequences(question, max_length) for question in questions]
     questions  = torch.from_numpy(np.array(questions))
 
-    # NEED TO FIX THIS PROPERLY, PASS IAMGE_MODEL_TYPE AS WELL
-    model      = VQABaseline(vocab_size = len(word2idx), use_image_embedding = False, use_dropout = False, output_size = top_k)
+    model      = get_model(model_type, len(word2idx), False, use_dropout, top_k, image_model_type, attention_mechanism, word_embedding_size, lstm_hidden_size)
     model      = nn.DataParallel(model)
     # load the model
     model.load_state_dict(torch.load(os.path.join(model_dir, run_name + '_best.pth'), map_location=torch.device('cpu')))
     model.eval()
     
+    # make the predictions
     preds = model(img, questions)
     preds = torch.softmax(preds, 1)
 
@@ -265,10 +277,10 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, run_name 
     probs          = probs.tolist()
     indices        = indices.tolist()
 
-    display(orig_image)
+    orig_image.show()
     for i, question in enumerate(orig_ques):
         print(question)
         for index, prob in zip(indices[i], probs[i]):
-            if index != 0 and prob > 0.1:
-                print(idx2label[index], f"{prob}")
+            if index != 0:
+                print(idx2label[index])
         print("\n")

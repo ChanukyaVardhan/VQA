@@ -30,10 +30,12 @@ wget -O ${ANNOTATIONS_DIR}/v2_Annotations_Val_mscoco.zip "https://s3.amazonaws.c
 # VQA Input Questions
 wget -O ${QUESTIONS_DIR}/v2_Questions_Train_mscoco.zip "https://s3.amazonaws.com/cvmlp/vqa/mscoco/vqa/v2_Questions_Train_mscoco.zip"
 wget -O ${QUESTIONS_DIR}/v2_Questions_Val_mscoco.zip "https://s3.amazonaws.com/cvmlp/vqa/mscoco/vqa/v2_Questions_Val_mscoco.zip"
+wget -O ${QUESTIONS_DIR}/v2_Questions_Test_mscoco.zip "https://s3.amazonaws.com/cvmlp/vqa/mscoco/vqa/v2_Questions_Test_mscoco.zip"
 
 # VQA Input Images (COCO)
 wget -O ${IMAGES_DIR}/train2014.zip "http://images.cocodataset.org/zips/train2014.zip"
 wget -O ${IMAGES_DIR}/val2014.zip "http://images.cocodataset.org/zips/val2014.zip"
+wget -O ${IMAGES_DIR}/test2015.zip "http://images.cocodataset.org/zips/test2015.zip"
 
 ##########################################################
 
@@ -44,9 +46,11 @@ unzip ${ANNOTATIONS_DIR}/v2_Annotations_Val_mscoco.zip -d ${ANNOTATIONS_DIR}
 
 unzip ${QUESTIONS_DIR}/v2_Questions_Train_mscoco.zip -d ${QUESTIONS_DIR}
 unzip ${QUESTIONS_DIR}/v2_Questions_Val_mscoco.zip -d ${QUESTIONS_DIR}
+unzip ${QUESTIONS_DIR}/v2_Questions_Test_mscoco.zip -d ${QUESTIONS_DIR}
 
 unzip ${IMAGES_DIR}/train2014.zip -d ${IMAGES_DIR}
 unzip ${IMAGES_DIR}/val2014.zip -d ${IMAGES_DIR}
+unzip ${IMAGES_DIR}/test2015.zip -d ${IMAGES_DIR}
 
 ##########################################################
 
@@ -57,8 +61,10 @@ rm ${ANNOTATIONS_DIR}/v2_Annotations_Val_mscoco.zip
 
 rm ${QUESTIONS_DIR}/v2_Questions_Train_mscoco.zip
 rm ${QUESTIONS_DIR}/v2_Questions_Val_mscoco.zip
+rm ${QUESTIONS_DIR}/v2_Questions_Test_mscoco.zip
 
 rm ${IMAGES_DIR}/train2014.zip
 rm ${IMAGES_DIR}/val2014.zip
+rm ${IMAGES_DIR}/test2015.zip
 
 ##########################################################

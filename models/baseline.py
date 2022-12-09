@@ -6,7 +6,7 @@ import torchvision.models as models
 class ImageEncoder(nn.Module):
 
     def __init__(self, output_size = 1024, image_channel_type = 'normi', use_embedding = True, trainable = False,
-                 dropout_prob = 0.5, use_dropout = False, image_model_type = 'vgg16'):
+                 dropout_prob = 0.5, use_dropout = True, image_model_type = 'vgg16'):
         super(ImageEncoder, self).__init__()
 
         self.image_channel_type = image_channel_type
@@ -33,7 +33,7 @@ class ImageEncoder(nn.Module):
         self.fc.append(nn.Tanh())
     
     def forward(self, images):
-        if not self.use_embedding:
+        if not self.use_embedding: # Load the image embedding directly
             images      = self.model(images)
 
         if self.image_model_type == 'resnet152':
@@ -48,7 +48,7 @@ class ImageEncoder(nn.Module):
 class QuestionEncoder(nn.Module):
     
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, hidden_size = 512, output_size = 1024,
-                 num_layers = 2, dropout_prob = 0.5, use_dropout = False):
+                 num_layers = 2, dropout_prob = 0.5, use_dropout = True):
         super(QuestionEncoder, self).__init__()
         
         self.word_embeddings = nn.Sequential()
@@ -89,7 +89,7 @@ class VQABaseline(nn.Module):
 
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
                  lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi', use_image_embedding = True,
-                 image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = False, attention_mechanism = 'element_wise_product'):
+                 image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = True, attention_mechanism = 'element_wise_product'):
         super(VQABaseline, self).__init__()
         
         self.word_embedding_size = word_embedding_size
@@ -120,10 +120,10 @@ class VQABaseline(nn.Module):
         
 
     def forward(self, images, questions):
-        image_embeddings    = self.image_encoder(images)
-        question_embeddings = self.question_encoder(questions)
-        final_embedding     = self.attention_fn[self.attention_mechanism](image_embeddings, question_embeddings)
+        image_embeddings    = self.image_encoder(images) # Image Embeddings
+        question_embeddings = self.question_encoder(questions) # Question Embeddings
+        final_embedding     = self.attention_fn[self.attention_mechanism](image_embeddings, question_embeddings) # Attention
         
-        output              = self.mlp(final_embedding)
+        output              = self.mlp(final_embedding) # Classifier
         
         return output

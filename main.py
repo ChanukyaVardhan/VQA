@@ -4,7 +4,7 @@ from PIL import Image
 from torch.optim import Adadelta, Adam, lr_scheduler, RMSprop
 from torch.utils.data import Dataset, DataLoader
 from train import *
-from utils import parse_tb_logs
+from utils import parse_tb_logs, get_model
 
 import argparse
 import os
@@ -14,19 +14,10 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
-def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, attention_mechanism, word_embedding_size, lstm_state_size):
-    model = None
-
-    if model_type == 'baseline':
-        model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout,
-                            output_size = output_size, image_model_type = image_model_type, attention_mechanism = attention_mechanism,
-                            word_embedding_size = word_embedding_size, lstm_hidden_size = lstm_state_size)
-    else:
-        raise Exception(f'Model Type {model_type} is not supported')
-
-    return model
-
 def boolstr(s):
+    """
+        Argument parser for boolean string.
+    """
     if s not in {'False', 'True'}:
         raise ValueError('Not a valid boolean string')
     return s == 'True'
@@ -74,6 +65,7 @@ def main():
                        transforms.Resize((224, 224)),
                        transforms.ToTensor(),
                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+    # Create train and val datasets
     if args.model == 'baseline':
         train_ds     = VQADataset(args.data_dir, top_k = args.top_k_answers, max_length = args.max_length, transform = transform,
                                   use_image_embedding = args.use_image_embedding, image_model_type = args.image_model_type,
@@ -86,34 +78,41 @@ def main():
 
     num_gpus     = torch.cuda.device_count()
     batch_size   = args.batch_size
+    # Get train and val data loaders
     train_loader = DataLoader(train_ds, batch_size = batch_size, shuffle = True, num_workers = 2, pin_memory = True)
     val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
 
+    # Initialize the model on the device, and also use dataparallel if num_gpus available is > 1.
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
     model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers, args.image_model_type, args.attention_mechanism, args.word_embedding_size, args.lstm_state_size)
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
     
+    # Optimizer - Adam/Adadelta
     if args.optimizer == 'adam':
         optimizer = Adam(model.parameters(), lr = args.learning_rate)
     else:
         optimizer = Adadelta(model.parameters(), lr = args.learning_rate)
 
+    # Loss function
     if args.use_sigmoid:
         loss_fn   = nn.BCEWithLogitsLoss()
-    elif args.use_sftmx_multiple_ans:
+    elif args.use_sftmx_multiple_ans: # Allowing multiple answers in softmax
         loss_fn   = nn.LogSoftmax(dim = 1)
     else:
         loss_fn   =  nn.CrossEntropyLoss()
 
+    # Train the model
     model, optim, best_accuracy = \
         train_model(model, train_loader, val_loader, loss_fn, optimizer, device,
-                    args.model_dir, args.log_dir, args.learning_rate, epochs = args.epochs,
+                    args.model_dir, args.log_dir, epochs = args.epochs,
                     run_name = args.run_name, use_sigmoid = args.use_sigmoid, use_sftmx_multiple_ans = args.use_sftmx_multiple_ans,
                     save_best_state = args.save_best_state, print_stats = args.print_stats,
                     print_epoch_freq = args.print_epoch_freq, print_step_freq = args.print_step_freq)
 
+    # Compute VQA accuracy on the best model
     model, vqa_accuracy = get_VQA_accuracy(model, val_loader, device)
 
+    # Parse the log files and save epoch level and step level training stats in csv files.
     parse_tb_logs(args.log_dir, args.run_name, 'epoch')
     parse_tb_logs(args.log_dir, args.run_name, 'step')
 
