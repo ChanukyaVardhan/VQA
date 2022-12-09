@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-# %matplotlib inline
 
 def pad_sequences(l, max_length):
     """
