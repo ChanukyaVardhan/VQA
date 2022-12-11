@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--lstm_state_size',        type=int,       help='LSTM hidden state size', default=512)
     parser.add_argument('--use_dropout',            type=boolstr,   help='use dropout', default=True)
     parser.add_argument('--attention_mechanism',    type=str,       help='method of combining image and text embeddings', choices=['element_wise_product', 'sum', 'concat'], default='element_wise_product')
+    parser.add_argument('--num_answers',            type=int,       help='return top num_answers for each question asked', default=5)
 
     parser.add_argument('--image_id',               type=int,       help='image id to answer questions for', required = True)
     parser.add_argument('--image_loc',              type=str,       help='the location of the image id passed, either train, val or test directories', choices=['train', 'val', 'test'], default='val')
@@ -39,7 +40,7 @@ def main():
     answer_these_questions(args.data_dir, args.model_dir, image_path, questions, model_type = args.model, run_name = args.run_name,
                            top_k = args.top_k_answers, max_length = args.max_length, image_model_type = args.image_model_type,
                            word_embedding_size = args.word_embedding_size, lstm_hidden_size = args.lstm_state_size,
-                           use_dropout = args.use_dropout, attention_mechanism = args.attention_mechanism)
+                           use_dropout = args.use_dropout, attention_mechanism = args.attention_mechanism, num_answers = args.num_answers)
 
 if __name__ == '__main__':
     main()

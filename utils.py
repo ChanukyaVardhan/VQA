@@ -19,6 +19,7 @@ import numpy as np
 import os
 import pickle
 import pandas as pd
+import string
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
@@ -114,6 +115,8 @@ def get_question_length_stats(data_directory):
 
     count          = collections.Counter(lengths)
     plt.bar(count.keys(), count.values())
+    plt.xlabel("Sequence Length")
+    plt.ylabel("Number of Questions")
     count          = sorted(count.items())
 
     df             = pd.DataFrame(count, columns=['sequence_length', 'count'])
@@ -263,7 +266,7 @@ def get_image_to_questions(data_dir, mode = 'test'):
 
 def answer_these_questions(data_dir, model_dir, image_path, questions, model_type = 'baseline', run_name = 'baseline_512',
                            top_k = 1000, max_length = 14, image_model_type = 'vgg16', word_embedding_size = 300, use_dropout = True,
-                           lstm_hidden_size = 512, attention_mechanism = 'element_wise_product'):
+                           lstm_hidden_size = 512, attention_mechanism = 'element_wise_product', num_answers = 5):
     """
         prints the predicted answers given an image and the questions for that image.
         - data_dir:            directory of images and preprocessed data
@@ -278,6 +281,7 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, model_typ
         - word_embedding_size: word embedding size used during training
         - lstm_hidde_size:     lstm hidden state size used during training
         - attention_mechanism: attention mechanism used during training
+        - num_answers:         return num_answers for each question
 
     """
     n          = len(questions)
@@ -311,7 +315,7 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, model_typ
     preds = model(img, questions)
     preds = torch.softmax(preds, 1)
 
-    probs, indices = torch.topk(preds, k=5, dim=1)
+    probs, indices = torch.topk(preds, k = num_answers, dim = 1)
     probs          = probs.tolist()
     indices        = indices.tolist()
 
