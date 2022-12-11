@@ -137,10 +137,10 @@ An example command to run the VQA baseline model - `python main.py --data_dir ..
 #### 5. Visualizing Training Results
 Training statistics for an experiment are all saved using the run_name passed for it. Log files are save as tensorboard events in the log directory passed during training, and the parsed csv files of these logs are saved in the same directory. `utils.py` has multiple functions that can help visualize these csv files.
 
-To view the VQA accuracies for multiple runs together we can use `python utils.py 'from utils import *; plot_all_accuracies(log_dir, ["run_13, run_23, run_43"])'` with the appropriate log directory.
+To view the VQA accuracies for multiple runs together we can use `python utils.py 'from utils import *; plot_vqa_accuracies(log_dir, ["run_13, run_23, run_43"])'` with the appropriate log directory.
 
 #### 6. Predicting Answers
-To predict answers for an image in the dataset, we can use the script `answer_questions.py` by passing the arguments that were used during training of that experiment. `python answer_questions.py --data_dir ../Dataset --model_dir ../checkpoints --run_name run_43 --top_k_answers 3000 --use_dropout True --image_loc val --image_id 264957`. In case of testing on a custom image and questions, we can use the function `answer_these_questions()` that takes in image path and list of questions along with the other parameters that were used for the experiment during training.
+To predict answers for an image in the dataset, we can use the script `answer_questions.py` by passing the arguments that were used during training of that experiment. `python answer_questions.py --data_dir ../Dataset --model_dir ../checkpoints --run_name run_43 --top_k_answers 3000 --use_dropout True --image_loc val --image_id 264957`. In case of testing on a custom image and questions, we can use the function `answer_these_questions()` in `utils.py` that takes in image path and list of questions along with the other parameters that were used for the experiment during training.
 
 ## Results
 
