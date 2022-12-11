@@ -23,6 +23,24 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
+def preprocess_text(text):
+    """
+        Converts a string to lower case, removes punctuations.
+    """
+    text_token_list = text.strip().split(',')
+    text  = ' '.join(text_token_list)
+
+    # Remove punctuations
+    table = str.maketrans('', '', string.punctuation)
+    words = text.strip().split()
+    words = [w.translate(table) for w in words]
+
+    # Set to lowercase & drop empty strings
+    words = [word.lower() for word in words if word != '' and word != 's']
+    
+    text  = ' '.join(words)
+    return text
+
 def pad_sequences(l, max_length):
     """
         Pad question with <pad> token (i.e., idx 0) till max_length, if
@@ -147,6 +165,26 @@ def plot_vqa_accuracies(log_directory, run_names):
     plt.legend()
     plt.show()
 
+def plot_train_accuracies(log_directory, run_names):
+    for run_name in run_names:
+        df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
+        plt.plot(df['epoch'].values, df["train_accuracy"].values, label = run_name)
+    plt.xlabel("Number of Epochs")
+    plt.ylabel("Train Accuracy")
+    plt.title("Train Accuracy vs Number of Epochs")
+    plt.legend()
+    plt.show()
+
+def plot_val_accuracies(log_directory, run_names):
+    for run_name in run_names:
+        df              = pd.read_csv(os.path.join(log_directory, run_name + '.csv'))
+        plt.plot(df['epoch'].values, df["val_accuracy"].values, label = run_name)
+    plt.xlabel("Number of Epochs")
+    plt.ylabel("Val Accuracy")
+    plt.title("Val Accuracy vs Number of Epochs")
+    plt.legend()
+    plt.show()
+
 def plot_all_accuracies(log_directory, run_names):
     """
         plots separate plots of train, val and vqa accuracy for all the run_names together
@@ -259,7 +297,7 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, model_typ
     word2idx   = pickle.load(open(os.path.join(data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"]
 
     orig_ques  = questions
-    questions  = [[word2idx[w] if w in word2idx else word2idx['<unk>'] for w in question.split()] for question in questions]
+    questions  = [[word2idx[w] if w in word2idx else word2idx['<unk>'] for w in preprocess_text(question).split()] for question in questions]
     questions  = [pad_sequences(question, max_length) for question in questions]
     questions  = torch.from_numpy(np.array(questions))
 
