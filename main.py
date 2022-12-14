@@ -56,7 +56,7 @@ def main():
     parser.add_argument('--bi_directional',         type=boolstr,   help='True if lstm is to be bi-directional', choices=[True, False], default=False)
     parser.add_argument('--use_lstm',               type=boolstr,   help='True if lstm is to be used', choices=[True, False], default=True)
     parser.add_argument('--use_glove',              type=boolstr,   help='True if glove embeddings are to be used', choices=[True, False], default=False)
-    parser.add_argument('--embedding_file_name',    type=str,   help='glove embedding path file', default='word_embeddings_glove.pkl')
+    parser.add_argument('--embedding_file_name',    type=str,       help='glove embedding path file', default='word_embeddings_glove.pkl')
 
     parser.add_argument('--random_seed',            type=int,       help='random seed for the experiment', default=43)
 

@@ -128,6 +128,14 @@ options:
                         flag to save best model, used to resume training from the epoch of the best state
   --attention_mechanism {element_wise_product,sum,concat}
                         method of combining image and text embeddings
+  --bi_directional {True,False}
+                        True if lstm is to be bi-directional
+  --use_lstm {True,False}
+                        True if lstm is to be used
+  --use_glove {True,False}
+                        True if glove embeddings are to be used
+  --embedding_file_name EMBEDDING_FILE_NAME
+                        glove embedding path file
   --random_seed RANDOM_SEED
                         random seed for the experiment
 
@@ -140,7 +148,7 @@ Training statistics for an experiment are all saved using the run_name passed fo
 To view the VQA accuracies for multiple runs together we can use `python utils.py 'from utils import *; plot_vqa_accuracies(log_dir, ["run_13, run_23, run_43"])'` with the appropriate log directory.
 
 #### 6. Predicting Answers
-To predict answers for an image in the dataset, we can use the script `answer_questions.py` by passing the arguments that were used during training of that experiment. `python answer_questions.py --data_dir ../Dataset --model_dir ../checkpoints --run_name run_43 --top_k_answers 3000 --use_dropout True --image_loc val --image_id 264957`. In case of testing on a custom image and questions, we can use the function `answer_these_questions()` in `utils.py` that takes in image path and list of questions along with the other parameters that were used for the experiment during training.
+To predict answers for an image in the dataset, we can use the script `answer_questions.py` by passing the arguments that were used during training of that experiment. `python answer_questions.py --data_dir ../Dataset --model_dir ../checkpoints --run_name run_43 --top_k_answers 3000 --use_dropout True --image_loc val --image_id 264957`. In case of testing on a custom image and questions, we can use the function `answer_these_questions()` in `utils.py` that takes in the image path and a list of questions along with the other parameters that were used for the experiment during training.
 
 ## Results
 

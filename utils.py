@@ -221,7 +221,7 @@ def plot_all_accuracies(log_directory, run_names):
     plt.legend()
     plt.show()
 
-def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, attention_mechanism, word_embedding_size, lstm_state_size, bi_directional=False, max_length = 14, use_glove = False, use_lstm = True, embedding_file_path = None):
+def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, attention_mechanism, word_embedding_size, lstm_state_size, bi_directional = False, max_length = 14, use_glove = False, use_lstm = True, embedding_file_path = None):
     """
         Instantiates the pytorch model given the appropriate parameters.
     """
@@ -266,7 +266,8 @@ def get_image_to_questions(data_dir, mode = 'test'):
 
 def answer_these_questions(data_dir, model_dir, image_path, questions, model_type = 'baseline', run_name = 'baseline_512',
                            top_k = 1000, max_length = 14, image_model_type = 'vgg16', word_embedding_size = 300, use_dropout = True,
-                           lstm_hidden_size = 512, attention_mechanism = 'element_wise_product', num_answers = 5):
+                           lstm_hidden_size = 512, attention_mechanism = 'element_wise_product', num_answers = 5,
+                           bi_directional = False, use_glove = False, use_lstm = True, embedding_file_name = 'word_embeddings_glove.pkl'):
     """
         prints the predicted answers given an image and the questions for that image.
         - data_dir:            directory of images and preprocessed data
@@ -282,7 +283,10 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, model_typ
         - lstm_hidde_size:     lstm hidden state size used during training
         - attention_mechanism: attention mechanism used during training
         - num_answers:         return num_answers for each question
-
+        - bi_directional:      whether the lstm trained on was bi directional
+        - use_lstm:            True if lstm is used
+        - use_glove:           True if glove embeddings are used
+        - embedding_file_name: glove embeddings path file name
     """
     n          = len(questions)
     transform  = transforms.Compose([
@@ -305,7 +309,8 @@ def answer_these_questions(data_dir, model_dir, image_path, questions, model_typ
     questions  = [pad_sequences(question, max_length) for question in questions]
     questions  = torch.from_numpy(np.array(questions))
 
-    model      = get_model(model_type, len(word2idx), False, use_dropout, top_k, image_model_type, attention_mechanism, word_embedding_size, lstm_hidden_size)
+    model      = get_model(model_type, len(word2idx), False, use_dropout, top_k, image_model_type, attention_mechanism,
+                           word_embedding_size, lstm_hidden_size, bi_directional, max_length, use_glove, use_lstm, os.path.join(data_dir, embedding_file_name))
     model      = nn.DataParallel(model)
     # load the model
     model.load_state_dict(torch.load(os.path.join(model_dir, run_name + '_best.pth'), map_location=torch.device('cpu')))
