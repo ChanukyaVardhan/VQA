@@ -48,7 +48,7 @@ class ImageEncoder(nn.Module):
 class QuestionEncoder(nn.Module):
     
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, hidden_size = 512, output_size = 1024,
-                 num_layers = 2, dropout_prob = 0.5, use_dropout = True):
+                 num_layers = 2, dropout_prob = 0.5, use_dropout = True, bi_directional = False, max_seq_len = 14):
         super(QuestionEncoder, self).__init__()
         
         self.word_embeddings = nn.Sequential()
@@ -58,28 +58,41 @@ class QuestionEncoder(nn.Module):
         self.word_embeddings.append(nn.Tanh())
 
         self.lstm            = nn.LSTM(input_size = word_embedding_size, hidden_size = hidden_size,
-                                       num_layers = num_layers)
+                                       num_layers = num_layers, bidirectional=bi_directional, batch_first=bi_directional )
 
         self.fc              = nn.Sequential()
-        self.fc.append(nn.Linear(2 * num_layers * hidden_size, output_size))
+        self.bi_directional = bi_directional
+        self.max_seq_len  = max_seq_len
+        self.hidden_size = hidden_size
+        
+        if bi_directional:
+            self.fc.append(nn.Linear(2 * max_seq_len * hidden_size, output_size))
+        else:
+            self.fc.append(nn.Linear(2 * num_layers * hidden_size, output_size))
+
         if use_dropout:
             self.fc.append(nn.Dropout(dropout_prob))
         self.fc.append(nn.Tanh())
         
     def forward(self, questions):
         x                  = self.word_embeddings(questions)
-        # N * seq_length * 300
-        x                  = x.transpose(0, 1)
-        # seq_length * N * 300
-        _, (hidden, cell)  = self.lstm(x)
-        # (1 * N * 1024, 1 * N * 1024)
-        x                  = torch.cat((hidden, cell), 2)
-        # (1 * N * 2048)
-        x                  = x.transpose(0, 1)
-        # (N * 1 * 2048)
-        x                  = x.reshape(x.size()[0], -1)
-        # (N * 2048)
-        x                  = nn.Tanh()(x)
+        if self.bi_directional == False:
+            # N * seq_length * 300
+            x                  = x.transpose(0, 1)
+            # seq_length * N * 300
+            _, (hidden, cell)  = self.lstm(x)
+            # (1 * N * 1024, 1 * N * 1024)
+            x                  = torch.cat((hidden, cell), 2)
+            # (1 * N * 2048)
+            x                  = x.transpose(0, 1)
+            # (N * 1 * 2048)
+            x                  = x.reshape(x.size()[0], -1)
+            # (N * 2048)
+            x                  = nn.Tanh()(x)
+        else:
+            x, (hidden, cell)  = self.lstm(x)
+            x = x.reshape(-1,2*self.max_seq_len*self.hidden_size)
+        
         question_embedding = self.fc(x)
         # (N * 1024)
 
@@ -89,7 +102,7 @@ class VQABaseline(nn.Module):
 
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
                  lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi', use_image_embedding = True,
-                 image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = True, attention_mechanism = 'element_wise_product'):
+                 image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = True, attention_mechanism = 'element_wise_product', bi_directional=False, max_seq_len = 14):
         super(VQABaseline, self).__init__()
         
         self.word_embedding_size = word_embedding_size
@@ -107,7 +120,9 @@ class VQABaseline(nn.Module):
                                                    output_size         = embedding_size,
                                                    num_layers          = num_lstm_layers,
                                                    dropout_prob        = dropout_prob,
-                                                   use_dropout         = use_dropout)
+                                                   use_dropout         = use_dropout,
+                                                   bi_directional      = bi_directional,
+                                                   max_seq_len         = max_seq_len)
         self.attention_mechanism = attention_mechanism
         self.attention_fn = {'element_wise_product': lambda x,y:x*y, 'sum': torch.add, 'concat': lambda x,y:torch.cat((x,y),dim=1)}
         self.embedding_size_post_attention = {'element_wise_product': embedding_size, 'sum': embedding_size, 'concat': 2*embedding_size}
