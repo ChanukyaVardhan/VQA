@@ -54,6 +54,10 @@ def main():
     parser.add_argument('--save_best_state',        type=boolstr,   help='flag to save best model, used to resume training from the epoch of the best state', default=True)
     parser.add_argument('--attention_mechanism',    type=str,       help='method of combining image and text embeddings', choices=['element_wise_product', 'sum', 'concat'], default='element_wise_product')
     parser.add_argument('--bi_directional',         type=boolstr,   help='True if lstm is to be bi-directional', choices=[True, False], default=False)
+    parser.add_argument('--use_lstm',               type=boolstr,   help='True if lstm is to be used', choices=[True, False], default=True)
+    parser.add_argument('--use_glove',              type=boolstr,   help='True if glove embeddings are to be used', choices=[True, False], default=False)
+    parser.add_argument('--embedding_file_name',    type=str,   help='glove embedding path file', default='word_embeddings_glove.pkl')
+
     parser.add_argument('--random_seed',            type=int,       help='random seed for the experiment', default=43)
 
     args = parser.parse_args()
@@ -84,7 +88,7 @@ def main():
 
     # Initialize the model on the device, and also use dataparallel if num_gpus available is > 1.
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
-    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers, args.image_model_type, args.attention_mechanism, args.word_embedding_size, args.lstm_state_size, args.bi_directional, args.max_length)
+    model        = get_model(args.model, vocab_size, args.use_image_embedding, args.use_dropout, args.top_k_answers, args.image_model_type, args.attention_mechanism, args.word_embedding_size, args.lstm_state_size, args.bi_directional, args.max_length, args.use_glove, args.use_lstm, os.path.join(args.data_dir,args.embedding_file_name))
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
     
     # Optimizer - Adam/Adadelta
