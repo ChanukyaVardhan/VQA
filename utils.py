@@ -221,7 +221,7 @@ def plot_all_accuracies(log_directory, run_names):
     plt.legend()
     plt.show()
 
-def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, attention_mechanism, word_embedding_size, lstm_state_size):
+def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_size, image_model_type, attention_mechanism, word_embedding_size, lstm_state_size, bi_directional=False, max_length = 14):
     """
         Instantiates the pytorch model given the appropriate parameters.
     """
@@ -230,7 +230,7 @@ def get_model(model_type, vocab_size, use_image_embedding, use_dropout, output_s
     if model_type == 'baseline':
         model = VQABaseline(vocab_size = vocab_size, use_image_embedding = use_image_embedding, use_dropout = use_dropout,
                             output_size = output_size, image_model_type = image_model_type, attention_mechanism = attention_mechanism,
-                            word_embedding_size = word_embedding_size, lstm_hidden_size = lstm_state_size)
+                            word_embedding_size = word_embedding_size, lstm_hidden_size = lstm_state_size, bi_directional = bi_directional, max_seq_len = max_length)
     else:
         raise Exception(f'Model Type {model_type} is not supported')
 
