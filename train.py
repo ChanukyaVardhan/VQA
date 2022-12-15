@@ -6,7 +6,7 @@ import os
 import time
 import torch
 
-def train(model, train_loader, loss_fn, optimizer, device, completed_steps, use_sigmoid = False, use_sftmx_multiple_ans = False, print_step_freq = 50, print_stats = True, step_writer = None):
+def train(model, train_loader, loss_fn, optimizer, device, completed_steps, use_sigmoid = False, use_sftmx_multiple_ans = False, print_step_freq = 50, print_stats = True, step_writer = None, prof=None):
     """
         train the model for an epoch with data from train_loader on device
     """
@@ -49,6 +49,8 @@ def train(model, train_loader, loss_fn, optimizer, device, completed_steps, use_
         if step_writer is not None:
             step_writer.add_scalar('Train_Loss', train_loss/num_samples, completed_steps)
             step_writer.add_scalar('Train_Accuracy', train_accuracy * 100.0/num_samples, completed_steps)
+        if prof is not None:
+            prof.step()
 
     train_loss         /= num_samples
     train_accuracy      = train_accuracy * 100.0 / num_samples
@@ -142,6 +144,13 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
     if save_logs:
         epoch_writer      = SummaryWriter(os.path.join(log_directory, run_name)) # summary writer for epoch level stats
         step_writer       = SummaryWriter(os.path.join(log_directory, run_name + "_step")) # summary writer for step level stats
+        prof = torch.profiler.profile(
+            schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler('./log/resnet18'),
+            record_shapes=True,
+            with_stack=True)
+        prof.start()
+
     for epoch in range(start_epoch, epochs + 1):
         # completed_steps used to print statistics at step level, start with the appropriate number
         completed_steps   = (epoch - 1) * train_steps
@@ -151,7 +160,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
         model, optimizer, train_loss, train_accuracy = train(model, train_loader, loss_fn, optimizer, device, completed_steps,
                                                              use_sigmoid = use_sigmoid, use_sftmx_multiple_ans = use_sftmx_multiple_ans,
                                                              print_step_freq = print_step_freq, print_stats = print_stats,
-                                                             step_writer = step_writer if save_logs else None)
+                                                             step_writer = step_writer if save_logs else None, prof=prof)
         train_time        = time.time() - train_start_time
 
         # validate an epoch
@@ -198,6 +207,7 @@ def train_model(model, train_loader, val_loader, loss_fn, optimizer, device, sav
     if save_logs:
         epoch_writer.close()
         step_writer.close()
+        prof.stop()
 
     return model, optimizer, best_accuracy
 
