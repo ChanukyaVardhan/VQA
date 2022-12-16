@@ -6,6 +6,10 @@ import os
 import pickle
 
 class ImageEncoder(nn.Module):
+    """
+    class to encode the image chanel - using either VGG16 or ResNet152 based on user input
+    can load pre-saved embeddings from file or perform an inference step with the CNN model
+    """
 
     def __init__(self, output_size = 1024, image_channel_type = 'normi', use_embedding = True, trainable = False,
                  dropout_prob = 0.5, use_dropout = True, image_model_type = 'vgg16'):
@@ -48,7 +52,9 @@ class ImageEncoder(nn.Module):
         return image_embedding
 
 class QuestionEncoder(nn.Module):
-    
+    """
+    class to encode the text channel, supports GloVe embeddings, vanilla LSTM and bi-directional LSTM based embeddings
+    """
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, hidden_size = 512, output_size = 1024,
                  num_layers = 2, dropout_prob = 0.5, use_dropout = True, bi_directional = False, max_seq_len = 14, use_glove = False, use_lstm = False, embedding_file_path = None):
         super(QuestionEncoder, self).__init__()
@@ -121,7 +127,12 @@ class QuestionEncoder(nn.Module):
         return question_embedding
 
 class VQABaseline(nn.Module):
-
+    """
+    class to perform a forward pass through the model
+    get embeddings for image and text channel
+    combine them using the specified attention mechanism
+    pass the joint vector representation via a deep NN classifier to get the output answer
+    """
     def __init__(self, vocab_size = 10000, word_embedding_size = 300, embedding_size = 1024, output_size = 1000,
                  lstm_hidden_size = 512, num_lstm_layers = 2, image_channel_type = 'normi', use_image_embedding = True,
                  image_model_type = 'vgg16', dropout_prob = 0.5, train_cnn = False, use_dropout = True, attention_mechanism = 'element_wise_product', bi_directional=False, max_seq_len = 14, use_glove = False, use_lstm = True, embedding_file_path = None):

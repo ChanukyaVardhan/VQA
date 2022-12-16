@@ -5,6 +5,9 @@ import argparse
 import os
 
 def generate_glove_embeddings():
+    """
+    load pretrained GloVe embeddings and save it in an intermediate form which will help us convert this into a mapping between words to their vectors and pickle that
+    """
     words = []
     idx = 0
     word2idx = {}
@@ -31,6 +34,9 @@ def generate_glove_embeddings():
     pickle.dump(word2idx, open(file_name + '_idx.pkl', 'wb'))
 
 def pickle_glove_embeddings():
+    """
+    saves the mapping between words and their word vectors in a pickle file
+    """
     file_name = ''.join(glove_path.split('.')[:len(glove_path.split('.'))-1])
     vectors = bcolz.open(os.path.join(data_dir, file_name + '.dat'))[:]
     words = pickle.load(open(os.path.join(data_dir, file_name + '_words.pkl'), 'rb'))
@@ -66,3 +72,5 @@ if __name__ == '__main__':
     embedding_dimensions = args.embedding_dimensions
     generate_glove_embeddings()
     pickle_glove_embeddings()
+
+# python generate_glove_embeddings.py --data_dir ../Dataset --glove_path . --vocab_size 40000 --embedding_dimensions 100 --output_pickle_file_path embedings.pkl
