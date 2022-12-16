@@ -16,6 +16,9 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 
 def get_model(model_type, vocab_size, use_image_embedding):
+    """
+        Instantiates the pytorch model given the appropriate parameters.
+    """
     model = None
 
     if model_type == 'baseline':
@@ -26,7 +29,10 @@ def get_model(model_type, vocab_size, use_image_embedding):
     return model
 
 def objective(trial):
-
+    """
+    specifiy a trial - hyperparameters to tune, list of choices we want to explore for each
+    build the model and return accuracy as a metric so that accuracy can be maximized across each trial
+    """
     params = {
               'optimizer': trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"]),
               }
@@ -38,11 +44,17 @@ def objective(trial):
     return accuracy
 
 def build_model(params):
+    """
+    build the VQA model and return 
+    """
     model        = get_model(args.model, vocab_size, args.use_image_embedding)
 
     return model
 
 def train_and_evaluate(params, model):
+    """
+    run a grid search to find the best set of hyper-parameters
+    """
     model        = nn.DataParallel(model).to(device) if num_gpus > 1 else model.to(device)
     optimizer    = params['optimizer']
     if optimizer == 'Adam':
@@ -111,13 +123,18 @@ if __name__ == '__main__':
         batch_size *= num_gpus
     train_loader = None
     val_loader   = None
+    # create dataset loaders
     train_loader = DataLoader(train_ds, batch_size = batch_size, shuffle = True, num_workers = 2, pin_memory = True)
     val_loader   = DataLoader(val_ds, batch_size = batch_size, num_workers = 2, pin_memory = True)
     vocab_size   = len(pickle.load(open(os.path.join(args.data_dir, 'questions_vocab.pkl'), 'rb'))["word2idx"])
-
+    # create an optuna study, that will maximize accuracy by runnning various trials with the hyper-parameter choices given
+    # the runs will be terminated if the accuracy is not improving for certain consecutive epochs
     study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(), pruner=optuna.pruners.MedianPruner())
     study.optimize(objective, n_trials=10)
     best_trial = study.best_trial
 
     for key, value in best_trial.params.items():
         print("{}: {}".format(key, value))
+
+
+# python grid_search.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --epochs 1 

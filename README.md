@@ -25,6 +25,8 @@ We work with the VQA baseline model[1] that uses a VGGNet to encode images and a
     ├── train.py              # functions to train the model
     ├── utils.py              # utility functions
     └── vectorize_images.py   # save image embeddings to pickle file
+    └──generate_glove_embeddings.py   # save word embeddings to pickle file
+    └──grid_search.py   # perform a grid search for hyper-parameter tuning to optimize the given set of params
 
 ## Usage
 
@@ -83,12 +85,17 @@ This script processes all the questions, annotations and saves each question exa
 python vectorize_images.py --data_dir ../Dataset --model_type vgg16
 ```
 
-#### 4. Train a model
+#### 4. Pre Compute Word Embeddings (if using GloVe, else optional)
+```
+python generate_word_embeddings.py --data_dir ../Dataset 
+```
+
+#### 5. Train a model
 We can run a training experiment using `main.py` script, which has various arguments required by the code. For information about each flag and its usage, we can run `python main.py -h`, which gives the following description:
 ```
 usage: main.py [-h] [--data_dir DATA_DIR] [--model_dir MODEL_DIR] [--log_dir LOG_DIR] --run_name RUN_NAME --model {baseline} [--image_model_type {vgg16,resnet152}] [--use_image_embedding USE_IMAGE_EMBEDDING] [--top_k_answers TOP_K_ANSWERS] [--max_length MAX_LENGTH] [--word_embedding_size WORD_EMBEDDING_SIZE] [--lstm_state_size LSTM_STATE_SIZE] [--batch_size BATCH_SIZE] [--epochs EPOCHS]
                [--learning_rate LEARNING_RATE] [--optimizer {adam,adadelta}] [--use_dropout USE_DROPOUT] [--use_sigmoid USE_SIGMOID] [--use_sftmx_multiple_ans USE_SFTMX_MULTIPLE_ANS] [--ignore_unknowns IGNORE_UNKNOWNS] [--use_softscore USE_SOFTSCORE] [--print_stats PRINT_STATS] [--print_epoch_freq PRINT_EPOCH_FREQ] [--print_step_freq PRINT_STEP_FREQ] [--save_best_state SAVE_BEST_STATE]
-               [--attention_mechanism {element_wise_product,sum,concat}] [--random_seed RANDOM_SEED]
+               [--attention_mechanism {element_wise_product,sum,concat}] [--random_seed RANDOM_SEED] [--bi_directional {True, False}] [--use_lstm {True, False}] [--use_glove {True, False}] [--embedding_file_name {PATH_TO_GLOVE_PKL_FILE}]
 
 VQA
 
@@ -153,13 +160,18 @@ options:
 ```
 An example command to run the VQA baseline model - `python main.py --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --run_name run_43 --model baseline --use_image_embedding True --top_k_answers 3000 --batch_size 384 --epochs 100 --optimizer adadelta --use_dropout True --use_sigmoid True --save_best_state True --random_seed 43`
 
-#### 5. Visualizing Training Results
+#### 6. Visualizing Training Results
 Training statistics for an experiment are all saved using the run_name passed for it. Log files are save as tensorboard events in the log directory passed during training, and the parsed csv files of these logs are saved in the same directory. `utils.py` has multiple functions that can help visualize these csv files.
 
 To view the VQA accuracies for multiple runs together we can use `python utils.py 'from utils import *; plot_vqa_accuracies(log_dir, ["run_13, run_23, run_43"])'` with the appropriate log directory.
 
-#### 6. Predicting Answers
+#### 7. Predicting Answers
 To predict answers for an image in the dataset, we can use the script `answer_questions.py` by passing the arguments that were used during training of that experiment. `python answer_questions.py --data_dir ../Dataset --model_dir ../checkpoints --run_name run_43 --top_k_answers 3000 --use_dropout True --image_loc val --image_id 264957`. In case of testing on a custom image and questions, we can use the function `answer_these_questions()` in `utils.py` that takes in the image path and a list of questions along with the other parameters that were used for the experiment during training.
+
+#### Hyper-parameter tuning via grid-search with Optuna
+To tune hyper-parameters of the model, we should first specify the parameters we wish to optimize and the list of choices for each param in the objective function in grid_search.py file. By default it will try to run trial runs with different combination of params, and prune the ones which are not learning well. The default objective is to find the trial which maximizes accuracy. However this can be changed to something like minimize training or val loss, etc as needed by tweaking the call to optuna.create_study(). The usage of this file is as follows :
+
+# python grid_search.py --run_name testrun --model baseline --data_dir ../Dataset --model_dir ../checkpoints --log_dir ../logs --epochs 1 
 
 ## Results
 
