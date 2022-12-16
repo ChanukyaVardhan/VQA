@@ -2,10 +2,21 @@
 
 ## Project Description
 
+VQA is a multi-disciplinary problem involving various domains such as Computer Vision, Natural Language Processing, Knowledge Representation and Reasoning, etc., The input consists of an image and a free form or open ended natural language question, the task is to provide an accurate natural language answer. Since the question may selectively target any minute details in the complex scene portrayed by the input image, there is a need for a neural architecture that can effectively learn a joint embedding representation in the multi-modal space combining the text and image representations using some form of attention.
+
+Due to the complexity involved in building such a neural architecture, there are several design decisions and engineering choices which need to be factored in, to justify why a certain architecture works better than others. Motivated by this challenge, our aim in this work is to mine this tremendous potential and explore the model architecture and hyper-parameter spaces to not only attempt and improve the model performance but also be able to justify our design choices, instead of treating the model like a black box and getting some empirical results from experimentation.
+
+In our experiments, we model our approach inspired by [1, 3, 4] as shown below, but our motive is to strike the right tradeoff between model complexity / performance and accuracy. Our aim is to show that even a simpler architecture with the right design choices can help achieve accuracies reasonably close to the state-of-the-art, while being computationally efficient.
+![description](images/description.png)
+
+We work with the VQA baseline model[1] that uses a VGGNet to encode images and a two layer LSTM to encode questions, and transforming them to a common space via an element-wise multiplication, which is then through a fully connected layer followed by a softmax layer to obtain a distribution over answers. We explore various settings on this simple architecture and work on improving the VQA accuracy.
+![baseline](images/baseline.png)
+
 ## Repo Structure
     .
     ├── dataset.py            # dataset for the preprocessed data
     ├── download_datasets.sh  # script to download VQA2.0 data and extract them
+    ├── images                # iamge files used in readme
     ├── main.py               # entry point for training, takes various arguments
     ├── models
     │	 └── baseline.py      # baseline model from VQA paper
@@ -152,12 +163,25 @@ To predict answers for an image in the dataset, we can use the script `answer_qu
 
 ## Results
 
-## Contributions
+Given below are the VQA accuracy values we observed from various experiments through a combination of hyper parameters.
+![results table](images/results.png)
 
-- Chanukya Vardhan
-    - 
-- Abhishek Narayanan
-    - 
+Following are the observations from our results - 
+
+- The model is prone to over fitting on this dataset, so using dropout is crucial.
+- We didn't find the choise of embedding sizes and LSTM configurations to be a major factor as the model is able to effectively capture the semantics even in a smaller dimension vector.
+- Increasing the output classifier size brings about an improvement as there are more answer choices.
+- Treating VQA as a multi-label classification problem improved the accuracy as a single wrong answer would not penalize the model much anymore.
+- Element wise sum of image and text vector for combining brings about a small improvement.
+- Using pre-trained GloVe and fine-tuning it, gave an accuracy reasonably close to LSTM.
+- Bi-directional LSTM improves accuracy. This shows that the context of words matters in both directions in the question.
+- Resnet152 gave a much poor accuracy compared to VGG16. Though Resnets have been shown to be better than VGG on ImageNet, in case of transfer learning, it depends how well the model is able to fine tune and leverage the transferable information to train on the target dataset.
+
+Here are some sample images and the top answers predicted using the best performing model -
+<p align="center" float="left">
+  <img src="./images/image1.png" />
+  <img src="./images/image2.png" />
+</p>
 
 ## References
 1. [VQA: Visual Question Answering.](https://openaccess.thecvf.com/content_iccv_2015/papers/Antol_VQA_Visual_Question_ICCV_2015_paper.pdf)
